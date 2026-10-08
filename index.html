@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kitsune VF</title>
+<meta name="description" content="Catalogue d'animés et lecteur VF avec lecture automatique de l'épisode suivant.">
+<meta name="theme-color" content="#0b0b12">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="#/" aria-label="Accueil"><span class="logo">狐</span>Kitsune<b>VF</b></a>
+  <form class="search" id="searchForm" role="search">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4a6 6 0 104.5 10l5 5 1.5-1.5-5-5A6 6 0 0010 4zm0 2a4 4 0 110 8 4 4 0 010-8z"/></svg>
+    <input id="q" type="search" placeholder="Rechercher un animé…" autocomplete="off" aria-label="Rechercher">
+  </form>
+  <nav>
+    <a href="#/" data-nav="home">Découvrir</a>
+    <a href="#/library" data-nav="library">Ma bibliothèque</a>
+    <a href="#/settings" data-nav="settings">Réglages</a>
+  </nav>
+</header>
+
+<main id="view" tabindex="-1"></main>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+<script src="app.js" type="module"></script>
+</body>
+</html>
