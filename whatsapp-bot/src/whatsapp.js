@@ -39,10 +39,16 @@ export function extractMessages(payload) {
   return out;
 }
 
+// Meta refuse dans un paramètre de modèle : sauts de ligne, tabulations, 4 espaces d'affilée, texte vide.
+export function cleanParam(text, max = 400) {
+  const t = String(text ?? '').replace(/[\r\n\t]+/g, ' | ').replace(/ {2,}/g, ' ').replace(/( \| )+/g, ' | ').trim();
+  return (t.length > max ? t.slice(0, max - 1) + '…' : t) || '-';
+}
+
 // Message modèle (template) : seul moyen d'écrire à un client hors de la fenêtre de 24 h.
 export async function sendTemplate({ token, phoneNumberId, to, name, language = 'fr', params = [], fetchImpl = fetch }) {
   const components = params.length
-    ? [{ type: 'body', parameters: params.map((text) => ({ type: 'text', text: String(text) })) }]
+    ? [{ type: 'body', parameters: params.map((text) => ({ type: 'text', text: cleanParam(text) })) }]
     : [];
   const res = await fetchImpl(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
     method: 'POST',

@@ -15,7 +15,8 @@ export async function handleWebhook(payload, deps) {
   }
 }
 
-export async function handleMessage(msg, { tenants, store, ask, send, config }) {
+export async function handleMessage(msg, deps) {
+  const { tenants, store, ask, send, config } = deps;
   const tenant = tenants.get(String(msg.phoneNumberId));
   if (!tenant) return; // numéro inconnu : on ignore
   if (await store.isDuplicate(tenant.id, msg.id)) return;
@@ -41,18 +42,22 @@ export async function handleMessage(msg, { tenants, store, ask, send, config }) 
 
   if (reply.includes(HANDOFF_MESSAGE)) {
     chat.handedOff = true;
-    await notifyOwner(tenant, send, `⚠️ Message à traiter de ${msg.name || msg.from} (${msg.from}) :\n« ${msg.text} »`);
+    await notifyOwner(deps, tenant, { kind: 'Réclamation client', who: `${msg.name || ''} ${msg.from}`.trim(), detail: msg.text });
   }
   if (ordered) {
     await store.logOrder(tenant.id, { customer: msg.from, name: msg.name, summary: reply, history: chat.history });
-    await notifyOwner(tenant, send, `🧺 Nouvelle commande confirmée de ${msg.name || msg.from} (${msg.from}) :\n${reply}`);
+    await notifyOwner(deps, tenant, { kind: 'Nouvelle commande', who: `${msg.name || ''} ${msg.from}`.trim(), detail: reply });
   }
   await store.saveChat(tenant.id, msg.from, chat);
 }
 
-async function notifyOwner(tenant, send, body) {
+// Alerte au responsable. `deps.alertOwner` (modèle approuvé, voir server.js) sinon texte libre.
+async function notifyOwner(deps, tenant, alert) {
   if (!tenant.owner_phone || /X/.test(tenant.owner_phone)) return;
   try {
-    await send({ phoneNumberId: tenant.phone_number_id, to: tenant.owner_phone, body });
-  } catch {}
+    if (deps.alertOwner) return await deps.alertOwner(tenant, alert);
+    await deps.send({ phoneNumberId: tenant.phone_number_id, to: tenant.owner_phone, body: `${alert.kind} — ${alert.who} : ${alert.detail}` });
+  } catch (err) {
+    deps.log?.(`Alerte responsable (${tenant.id}) échouée: ${err.message}`);
+  }
 }

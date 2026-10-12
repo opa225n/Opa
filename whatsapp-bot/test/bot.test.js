@@ -94,3 +94,33 @@ test('signature webhook', () => {
   assert.ok(!verifySignature(body, 'sha256=00', 's3cret'));
   assert.ok(!verifySignature(body, undefined, 's3cret'));
 });
+
+import { cleanParam } from '../src/whatsapp.js';
+
+test('paramètres de modèle nettoyés pour Meta', () => {
+  assert.equal(cleanParam('a\n\nb\tc    d'), 'a | b | c d');
+  assert.equal(cleanParam(''), '-');
+  assert.equal(cleanParam('x'.repeat(500)).length, 400);
+});
+
+test('alerte responsable via alertOwner (réclamation)', async () => {
+  const { deps, sent } = setup([HANDOFF_MESSAGE]);
+  const t = deps.tenants.values().next().value;
+  t.owner_phone = '2250500000000';
+  const alerts = [];
+  deps.alertOwner = async (tn, a) => alerts.push(a);
+  await handleWebhook(payload('Ma chemise est déchirée'), deps);
+  assert.equal(sent.length, 1); // seule la réponse au client passe par send
+  assert.equal(alerts[0].kind, 'Réclamation client');
+  assert.match(alerts[0].detail, /déchirée/);
+  t.owner_phone = 'X'; // ne pas polluer les autres tests (Map rechargée à chaque setup)
+});
+
+test('échec de l\'alerte responsable sans casser la réponse au client', async () => {
+  const { deps, sent } = setup([HANDOFF_MESSAGE]);
+  const t = deps.tenants.values().next().value;
+  t.owner_phone = '2250500000000';
+  deps.alertOwner = async () => { throw new Error('boom'); };
+  await handleWebhook(payload('Remise ?'), deps);
+  assert.equal(sent.length, 1);
+});

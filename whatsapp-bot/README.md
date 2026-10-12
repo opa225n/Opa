@@ -18,6 +18,11 @@ Un seul serveur, une fiche JSON par commerce. Chaque message reçu sur le numér
   Le nom se règle par commerce dans `ready_template` de la fiche ; sans cette clé, un texte libre est envoyé (valable seulement dans les 24 h suivant le dernier message du client).
 - Test Postgres : `TEST_DATABASE_URL=postgres://… npm test`.
 
+### Modèle d'alerte au responsable
+Les alertes (réclamation, nouvelle commande) utilisent le modèle `alerte_responsable` (clé `owner_template` de la fiche) : il fonctionne même si le responsable n'a pas écrit au bot depuis plus de 24 h. À soumettre dans Meta (catégorie *Utilitaire*, langue `fr`) avec 3 variables :
+`Alerte Pressing : {{1}} de la part de {{2}}. Détail : {{3}}. Merci de traiter rapidement.`
+Si Meta le refuse ou s'il n'est pas encore approuvé, le bot essaie un texte libre (valable seulement dans la fenêtre de 24 h). Les paramètres sont nettoyés automatiquement (sauts de ligne, longueur) pour respecter les règles de Meta.
+
 ## Démarrage
 ```bash
 cp .env.example .env     # puis remplir les clés

@@ -66,6 +66,18 @@ async function main() {
       }
       return send({ phoneNumberId: tenant.phone_number_id, to: order.customer, body: `Bonjour ${order.name || ''}, votre commande chez ${tenant.name} est prête ! Nous vous attendons ou nous vous la livrons selon ce qui a été convenu.`.replace('  ', ' ') });
     },
+    // Alerte au responsable : modèle approuvé (marche hors fenêtre de 24 h), sinon texte libre.
+    alertOwner: async (tenant, { kind, who, detail }) => {
+      const tpl = tenant.owner_template;
+      if (tpl) {
+        try {
+          return await sendTemplate({ token: config.waToken, phoneNumberId: tenant.phone_number_id, to: tenant.owner_phone, name: tpl.name, language: tpl.language, params: [kind, who, detail] });
+        } catch (err) {
+          console.error(`Modèle responsable refusé (${tenant.id}): ${err.message} — repli texte`);
+        }
+      }
+      return send({ phoneNumberId: tenant.phone_number_id, to: tenant.owner_phone, body: `${kind} — ${who} : ${detail}` });
+    },
     ask: ({ system, messages }) => askClaude({ apiKey: config.anthropicKey, model: config.model, system, messages }),
     send,
     log: (m) => console.error(m),

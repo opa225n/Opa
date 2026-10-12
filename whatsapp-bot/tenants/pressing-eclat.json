@@ -33,5 +33,9 @@
   "ready_template": {
     "name": "commande_prete",
     "language": "fr"
+  },
+  "owner_template": {
+    "name": "alerte_responsable",
+    "language": "fr"
   }
 }
