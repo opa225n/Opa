@@ -8,14 +8,30 @@
   "hours": "lundi au samedi, 7h30 à 19h. Fermé le dimanche.",
   "address": "[adresse précise à compléter]",
   "prices": [
-    { "item": "chemise", "price": 500 },
-    { "item": "pantalon", "price": 700 },
-    { "item": "robe", "price": 1500 },
-    { "item": "costume", "price": 2500 }
+    {
+      "item": "chemise",
+      "price": 500
+    },
+    {
+      "item": "pantalon",
+      "price": 700
+    },
+    {
+      "item": "robe",
+      "price": 1500
+    },
+    {
+      "item": "costume",
+      "price": 2500
+    }
   ],
   "currency": "FCFA",
   "delay": "48 h. Express 24 h : +50 % du prix.",
   "delivery": "Ramassage et livraison à domicile : 1 000 FCFA",
   "payment": "espèces, Wave, Orange Money",
-  "extra_rules": []
+  "extra_rules": [],
+  "ready_template": {
+    "name": "commande_prete",
+    "language": "fr"
+  }
 }

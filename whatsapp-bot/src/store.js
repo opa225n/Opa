@@ -28,12 +28,16 @@ export class Store {
     fs.writeFileSync(this.file(tenantId), JSON.stringify(this.load(tenantId)));
   }
 
-  chat(tenantId, phone) {
+  async getChat(tenantId, phone) {
     const d = this.load(tenantId);
     return (d.chats[phone] ||= { history: [], handedOff: false });
   }
 
-  isDuplicate(tenantId, msgId) {
+  async saveChat(tenantId) {
+    this.save(tenantId);
+  }
+
+  async isDuplicate(tenantId, msgId) {
     const d = this.load(tenantId);
     if (d.seen.includes(msgId)) return true;
     d.seen.push(msgId);
@@ -41,7 +45,7 @@ export class Store {
     return false;
   }
 
-  logOrder(tenantId, order) {
-    fs.appendFileSync(path.join(this.dir, `${tenantId}.orders.jsonl`), JSON.stringify(order) + '\n');
+  async logOrder(tenantId, order) {
+    fs.appendFileSync(path.join(this.dir, `${tenantId}.orders.jsonl`), JSON.stringify({ at: new Date().toISOString(), ...order }) + '\n');
   }
 }

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Commandes</title>
+<style>
+body{font:16px system-ui;margin:0;padding:16px;max-width:720px;margin-inline:auto;background:#f6f7f9;color:#111}
+select,button,input{font:inherit;padding:8px 12px;border-radius:8px;border:1px solid #bbb;background:#fff}
+button.go{background:#128c7e;color:#fff;border-color:#128c7e}
+.o{background:#fff;border-radius:10px;padding:12px;margin:10px 0;box-shadow:0 1px 3px #0002}
+.o small{color:#666}.o pre{white-space:pre-wrap;margin:8px 0;font:inherit}
+.tag{font-size:12px;padding:2px 8px;border-radius:99px;background:#eee}.new{background:#ffe9a8}.ready{background:#c9f2d0}
+</style></head><body>
+<h1>Commandes</h1>
+<p><input id="tok" type="password" placeholder="Code d'accès"> <button id="login">Entrer</button></p>
+<p><select id="tenant"></select> <select id="status"><option value="">Toutes</option><option value="new" selected>Nouvelles</option><option value="ready">Prêtes</option></select></p>
+<div id="list"></div>
+<script>
+const $=id=>document.getElementById(id);
+let tok=sessionStorage.getItem('tok')||'';$('tok').value=tok;
+const api=(p,o={})=>fetch(p,{...o,headers:{authorization:'Bearer '+tok}}).then(async r=>{if(!r.ok)throw new Error((await r.json()).error||r.status);return r.json()});
+async function init(){tok=$('tok').value;sessionStorage.setItem('tok',tok);
+ try{const t=await api('/admin/tenants');$('tenant').innerHTML=t.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');load()}catch(e){$('list').textContent=e.message}}
+async function load(){try{const o=await api(`/admin/orders?tenant=${$('tenant').value}&status=${$('status').value}`);
+ $('list').innerHTML=o.length?'':'<p>Aucune commande.</p>';
+ for(const x of o){const d=document.createElement('div');d.className='o';
+  d.innerHTML=`<b>#${x.id} ${x.name||''}</b> <small>${x.customer} · ${new Date(x.created_at).toLocaleString('fr-FR')}</small> <span class="tag ${x.status}">${x.status}</span><pre></pre>`;
+  d.querySelector('pre').textContent=x.summary||'';
+  if(x.status==='new'){const b=document.createElement('button');b.className='go';b.textContent='Marquer prête + prévenir le client';
+   b.onclick=async()=>{b.disabled=true;try{const r=await api(`/admin/orders/${x.id}/ready?tenant=${$('tenant').value}`,{method:'POST'});if(!r.notified)alert('Marquée prête, mais le client n\'a pas pu être prévenu : '+r.error);load()}catch(e){alert(e.message);b.disabled=false}};d.append(b)}
+  $('list').append(d)}}catch(e){$('list').textContent=e.message}}
+$('login').onclick=init;$('tenant').onchange=load;$('status').onchange=load;if(tok)init();
+</script></body></html>

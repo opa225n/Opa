@@ -9,6 +9,15 @@ Un seul serveur, une fiche JSON par commerce. Chaque message reçu sur le numér
 - **Réclamation / hors périmètre** : le bot envoie la phrase de transfert, se tait pour ce client, et prévient le responsable (`owner_phone`).
 - **Commande confirmée** : enregistrée dans `data/<commerce>.orders.jsonl` et envoyée au responsable.
 
+## Production
+- `DATABASE_URL` : Postgres (tables créées automatiquement au démarrage, voir `db/schema.sql`). Sans cette variable, repli sur des fichiers (dev uniquement).
+- `ADMIN_TOKEN` : active le tableau de bord `https://votre-domaine/admin` (liste des commandes, bouton « prête + prévenir le client »).
+- `Dockerfile` fourni (Railway, Render, Fly.io…). Démarrage : `node server.js`, port `PORT`.
+- Message « commande prête » : à soumettre dans Meta (WhatsApp Manager → Modèles), catégorie *Utilitaire*, langue `fr`, nom `commande_prete`, corps :
+  `Bonjour {{1}}, votre commande chez {{2}} est prête. Merci de votre confiance !`
+  Le nom se règle par commerce dans `ready_template` de la fiche ; sans cette clé, un texte libre est envoyé (valable seulement dans les 24 h suivant le dernier message du client).
+- Test Postgres : `TEST_DATABASE_URL=postgres://… npm test`.
+
 ## Démarrage
 ```bash
 cp .env.example .env     # puis remplir les clés
@@ -17,7 +26,7 @@ npm run chat             # tester l'assistant dans le terminal
 npm start                # lancer le serveur (webhook sur /webhook)
 npm test
 ```
-Aucune dépendance (Node ≥ 20).
+Seule dépendance : `pg` (Node ≥ 20).
 
 ## Installer un nouveau client (≈ 1-2 h)
 1. Numéro dédié non utilisé sur l'appli WhatsApp classique.
@@ -27,7 +36,6 @@ Aucune dépendance (Node ≥ 20).
 5. Redémarrer le serveur, tester avec `npm run chat`, puis par un vrai message.
 
 ## À prévoir avant la production
-- Hébergement HTTPS permanent (Render, Railway, VPS…) avec `data/` sur disque persistant.
+- Hébergement HTTPS permanent (Railway, Render, VPS…).
 - Renseigner `WHATSAPP_APP_SECRET` (sinon la signature n'est pas vérifiée).
-- Notification « commande prête » : Meta impose un **modèle de message approuvé** hors fenêtre de 24 h (non inclus, à ajouter).
-- Pour plus de volume, remplacer `src/store.js` par une vraie base (SQLite/Postgres).
+- Les alertes au responsable (`owner_phone`) sont aussi soumises à la fenêtre de 24 h de Meta : le responsable doit écrire au numéro du bot au moins une fois par jour, ou prévoir un modèle dédié.

@@ -18,9 +18,9 @@ export async function handleWebhook(payload, deps) {
 export async function handleMessage(msg, { tenants, store, ask, send, config }) {
   const tenant = tenants.get(String(msg.phoneNumberId));
   if (!tenant) return; // numéro inconnu : on ignore
-  if (store.isDuplicate(tenant.id, msg.id)) return;
+  if (await store.isDuplicate(tenant.id, msg.id)) return;
 
-  const chat = store.chat(tenant.id, msg.from);
+  const chat = await store.getChat(tenant.id, msg.from);
   if (chat.handedOff) return; // le responsable a repris la conversation
 
   if (!msg.text) {
@@ -44,10 +44,10 @@ export async function handleMessage(msg, { tenants, store, ask, send, config }) 
     await notifyOwner(tenant, send, `⚠️ Message à traiter de ${msg.name || msg.from} (${msg.from}) :\n« ${msg.text} »`);
   }
   if (ordered) {
-    store.logOrder(tenant.id, { at: new Date().toISOString(), customer: msg.from, name: msg.name, history: chat.history });
+    await store.logOrder(tenant.id, { customer: msg.from, name: msg.name, summary: reply, history: chat.history });
     await notifyOwner(tenant, send, `🧺 Nouvelle commande confirmée de ${msg.name || msg.from} (${msg.from}) :\n${reply}`);
   }
-  store.save(tenant.id);
+  await store.saveChat(tenant.id, msg.from, chat);
 }
 
 async function notifyOwner(tenant, send, body) {

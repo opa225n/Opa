@@ -38,3 +38,16 @@ export function extractMessages(payload) {
   }
   return out;
 }
+
+// Message modèle (template) : seul moyen d'écrire à un client hors de la fenêtre de 24 h.
+export async function sendTemplate({ token, phoneNumberId, to, name, language = 'fr', params = [], fetchImpl = fetch }) {
+  const components = params.length
+    ? [{ type: 'body', parameters: params.map((text) => ({ type: 'text', text: String(text) })) }]
+    : [];
+  const res = await fetchImpl(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'template', template: { name, language: { code: language }, components } }),
+  });
+  if (!res.ok) throw new Error(`WhatsApp template ${res.status}: ${await res.text()}`);
+}

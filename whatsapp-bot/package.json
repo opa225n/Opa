@@ -4,10 +4,15 @@
   "private": true,
   "description": "Assistant WhatsApp multi-commerces propulsé par Claude",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test/*.test.js",
+    "test": "node --test --test-force-exit test/*.test.js",
     "chat": "node scripts/chat.js"
+  },
+  "dependencies": {
+    "pg": "^8.23.1"
   }
 }
