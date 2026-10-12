@@ -1,0 +1,13 @@
+{
+  "name": "whatsapp-bot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Assistant WhatsApp multi-commerces propulsé par Claude",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "chat": "node scripts/chat.js"
+  }
+}
