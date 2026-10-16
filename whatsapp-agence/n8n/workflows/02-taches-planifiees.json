@@ -77,7 +77,7 @@
         "operation": "executeQuery",
         "query": "select purger_anciens_messages($1) as messages_supprimes;",
         "options": {
-          "queryReplacement": "={{ $env.RETENTION_JOURS }}"
+          "queryReplacement": "={{ [$env.RETENTION_JOURS] }}"
         }
       },
       "id": "pg_purger",
@@ -128,7 +128,7 @@
       "parameters": {
         "mode": "runOnceForEachItem",
         "language": "javaScript",
-        "jsCode": "const pct = Math.round((Number($json.utilise) / Number($json.plafond)) * 100);\nreturn {\n  texte: 'Plafond du forfait : ' + $json.nom + ' a utilise ' + $json.utilise +\n    ' / ' + $json.plafond + ' conversations ce mois (' + pct + ' %).',\n  phone_number_id: $json.phone_number_id,\n};"
+        "jsCode": "const pct = Math.round((Number($json.utilise) / Number($json.plafond)) * 100);\nconst texte = 'Plafond du forfait : ' + $json.nom + ' a utilise ' + $json.utilise +\n  ' / ' + $json.plafond + ' conversations ce mois (' + pct + ' %).';\nconst corps_envoi = JSON.stringify({\n  messaging_product: 'whatsapp',\n  to: $env.AGENCE_ALERT_WHATSAPP,\n  type: 'text',\n  text: { body: texte },\n});\nreturn { texte, phone_number_id: $json.phone_number_id, corps_envoi };"
       },
       "id": "code_message_plafond",
       "name": "Code_MessageAlertePlafond",
@@ -159,7 +159,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({messaging_product: \"whatsapp\", to: $env.AGENCE_ALERT_WHATSAPP, type: \"text\", text: {body: $json.texte}}) }}",
+        "jsonBody": "={{ $json.corps_envoi }}",
         "options": {
           "timeout": 15000
         }
@@ -213,7 +213,7 @@
         "operation": "executeQuery",
         "query": "select generer_rapport_mensuel($1) as rapport;",
         "options": {
-          "queryReplacement": "={{ $json.id }}"
+          "queryReplacement": "={{ [$json.id] }}"
         }
       },
       "id": "pg_generer_rapport",
@@ -229,7 +229,7 @@
       "parameters": {
         "mode": "runOnceForEachItem",
         "language": "javaScript",
-        "jsCode": "const r = $json.rapport;\nconst commerce = $('Postgres_ListeCommercesActifs').item.json;\nconst texte = [\n  'Rapport du mois ' + r.mois + ' pour ' + commerce.nom + ' :',\n  '- Messages recus : ' + r.messages_entrants,\n  '- Commandes : ' + r.commandes,\n  '- Transferts vers vous : ' + r.transferts,\n  '- Questions restees sans reponse : ' + r.questions_sans_reponse,\n  '',\n  'Pensez a enrichir la fiche avec les questions sans reponse (TRD section 10).',\n].join('\\n');\nreturn { texte_rapport: texte, numero_patron: commerce.numero_patron, phone_number_id: commerce.phone_number_id };"
+        "jsCode": "const r = $json.rapport;\nconst commerce = $('Postgres_ListeCommercesActifs').item.json;\nconst texte = [\n  'Rapport du mois ' + r.mois + ' pour ' + commerce.nom + ' :',\n  '- Messages recus : ' + r.messages_entrants,\n  '- Commandes : ' + r.commandes,\n  '- Transferts vers vous : ' + r.transferts,\n  '- Questions restees sans reponse : ' + r.questions_sans_reponse,\n  '',\n  'Pensez a enrichir la fiche avec les questions sans reponse (TRD section 10).',\n].join('\\n');\nconst corps_envoi = JSON.stringify({\n  messaging_product: 'whatsapp',\n  to: commerce.numero_patron,\n  type: 'text',\n  text: { body: texte },\n});\nreturn { texte_rapport: texte, numero_patron: commerce.numero_patron, phone_number_id: commerce.phone_number_id, corps_envoi };"
       },
       "id": "code_formater_rapport",
       "name": "Code_FormaterRapport",
@@ -260,7 +260,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({messaging_product: \"whatsapp\", to: $json.numero_patron, type: \"text\", text: {body: $json.texte_rapport}}) }}",
+        "jsonBody": "={{ $json.corps_envoi }}",
         "options": {
           "timeout": 15000
         }

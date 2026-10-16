@@ -134,7 +134,7 @@
         "operation": "executeQuery",
         "query": "select activer_fiche($1,$2,$3) as fiche_id;",
         "options": {
-          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }},={{ $('Webhook_Admin').item.json.body.contenu }},={{ $('Webhook_Admin').item.json.body.validee_par }}"
+          "queryReplacement": "={{ [$('Webhook_Admin').item.json.body.commerce_id, $('Webhook_Admin').item.json.body.contenu, $('Webhook_Admin').item.json.body.validee_par] }}"
         }
       },
       "id": "pg_activer_fiche",
@@ -200,7 +200,7 @@
         "operation": "executeQuery",
         "query": "select changer_statut_commande($1,$2,$3);",
         "options": {
-          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }},={{ $('Webhook_Admin').item.json.body.commande_id }},={{ $('Webhook_Admin').item.json.body.statut }}"
+          "queryReplacement": "={{ [$('Webhook_Admin').item.json.body.commerce_id, $('Webhook_Admin').item.json.body.commande_id, $('Webhook_Admin').item.json.body.statut] }}"
         }
       },
       "id": "pg_changer_statut",
@@ -266,7 +266,7 @@
         "operation": "executeQuery",
         "query": "select rendre_la_main_au_robot($1,$2);",
         "options": {
-          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }},={{ $('Webhook_Admin').item.json.body.conversation_id }}"
+          "queryReplacement": "={{ [$('Webhook_Admin').item.json.body.commerce_id, $('Webhook_Admin').item.json.body.conversation_id] }}"
         }
       },
       "id": "pg_reprise_manuelle",
@@ -332,7 +332,7 @@
         "operation": "executeQuery",
         "query": "select effacer_contact($1,$2);",
         "options": {
-          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }},={{ $('Webhook_Admin').item.json.body.numero }}"
+          "queryReplacement": "={{ [$('Webhook_Admin').item.json.body.commerce_id, $('Webhook_Admin').item.json.body.numero] }}"
         }
       },
       "id": "pg_supprimer_contact",
@@ -398,7 +398,7 @@
         "operation": "executeQuery",
         "query": "select generer_rapport_mensuel($1) as rapport;",
         "options": {
-          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }}"
+          "queryReplacement": "={{ [$('Webhook_Admin').item.json.body.commerce_id] }}"
         }
       },
       "id": "pg_rapport_admin",

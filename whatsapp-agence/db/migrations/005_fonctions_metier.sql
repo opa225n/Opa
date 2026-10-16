@@ -56,7 +56,13 @@ end;
 $$;
 
 -- Effacement d'un contact à sa demande (cascade vers conversations, messages, commandes).
+-- SECURITY DEFINER : le rôle flux_n8n n'a volontairement que select/insert/update
+-- (migration 004), jamais delete, pour limiter les dégâts d'un flux qui se tromperait.
+-- Cette unique fonction s'exécute donc avec les droits de son propriétaire
+-- (admin_agence) quel que soit l'appelant, pour que la demande d'effacement RGPD
+-- (déclenchée par le workflow admin interne, protégé par ADMIN_API_KEY) fonctionne
+-- sans donner au flux principal un accès delete général sur les tables.
 create or replace function effacer_contact(p_commerce_id uuid, p_numero text)
-returns void language sql as $$
+returns void language sql security definer set search_path = public as $$
   delete from contacts where commerce_id = p_commerce_id and numero = p_numero;
 $$;
