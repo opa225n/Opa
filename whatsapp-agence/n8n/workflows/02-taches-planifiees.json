@@ -1,0 +1,384 @@
+{
+  "name": "02 - Taches planifiees (reprise, purge, plafond, rapport)",
+  "nodes": [
+    {
+      "parameters": {
+        "width": 340,
+        "height": 220,
+        "content": "## Role Postgres requis\n\nTOUS les noeuds Postgres de ce workflow doivent utiliser une credential liee au role **admin_agence** (proprietaire des tables, qui contourne le RLS) - jamais flux_n8n. Ces taches parcourent plusieurs commerces a la fois, ce que le role flux_n8n (restreint par commerce) ne peut pas faire. Voir Schema backend section 5 et docs/DEPLOIEMENT.md.",
+        "color": 5
+      },
+      "id": "sn_credential",
+      "name": "Note - credential admin",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -460,
+        -40
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "sched_reprise",
+      "name": "ScheduleTrigger_Reprise",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select * from reprendre_conversations_inactives();",
+        "options": {}
+      },
+      "id": "pg_reprendre_inactives",
+      "name": "Postgres_ReprendreInactives",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        60,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      },
+      "id": "sched_purge",
+      "name": "ScheduleTrigger_Purge",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select purger_anciens_messages($1) as messages_supprimes;",
+        "options": {
+          "queryReplacement": "={{ $env.RETENTION_JOURS }}"
+        }
+      },
+      "id": "pg_purger",
+      "name": "Postgres_Purger",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        60,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "sched_plafond",
+      "name": "ScheduleTrigger_Plafond",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select * from commerces_proches_du_plafond(0.8);",
+        "options": {}
+      },
+      "id": "pg_plafond",
+      "name": "Postgres_CommercesProchesDuPlafond",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        60,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const pct = Math.round((Number($json.utilise) / Number($json.plafond)) * 100);\nreturn {\n  texte: 'Plafond du forfait : ' + $json.nom + ' a utilise ' + $json.utilise +\n    ' / ' + $json.plafond + ' conversations ce mois (' + pct + ' %).',\n  phone_number_id: $json.phone_number_id,\n};"
+      },
+      "id": "code_message_plafond",
+      "name": "Code_MessageAlertePlafond",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        320,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{$env.META_GRAPH_API_VERSION}}/{{$json.phone_number_id}}/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.META_WHATSAPP_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({messaging_product: \"whatsapp\", to: $env.AGENCE_ALERT_WHATSAPP, type: \"text\", text: {body: $json.texte}}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "http_alerte_plafond",
+      "name": "HTTP_AlerterAgencePlafond",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        580,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 1 * *"
+            }
+          ]
+        }
+      },
+      "id": "sched_rapport",
+      "name": "ScheduleTrigger_Rapport",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -200,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select id, nom, numero_patron, phone_number_id from commerces where statut = 'actif';",
+        "options": {}
+      },
+      "id": "pg_liste_commerces",
+      "name": "Postgres_ListeCommercesActifs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        60,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select generer_rapport_mensuel($1) as rapport;",
+        "options": {
+          "queryReplacement": "={{ $json.id }}"
+        }
+      },
+      "id": "pg_generer_rapport",
+      "name": "Postgres_GenererRapport",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        320,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const r = $json.rapport;\nconst commerce = $('Postgres_ListeCommercesActifs').item.json;\nconst texte = [\n  'Rapport du mois ' + r.mois + ' pour ' + commerce.nom + ' :',\n  '- Messages recus : ' + r.messages_entrants,\n  '- Commandes : ' + r.commandes,\n  '- Transferts vers vous : ' + r.transferts,\n  '- Questions restees sans reponse : ' + r.questions_sans_reponse,\n  '',\n  'Pensez a enrichir la fiche avec les questions sans reponse (TRD section 10).',\n].join('\\n');\nreturn { texte_rapport: texte, numero_patron: commerce.numero_patron, phone_number_id: commerce.phone_number_id };"
+      },
+      "id": "code_formater_rapport",
+      "name": "Code_FormaterRapport",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/{{$env.META_GRAPH_API_VERSION}}/{{$json.phone_number_id}}/messages",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$env.META_WHATSAPP_TOKEN}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({messaging_product: \"whatsapp\", to: $json.numero_patron, type: \"text\", text: {body: $json.texte_rapport}}) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "http_envoyer_rapport",
+      "name": "HTTP_EnvoyerRapportPatron",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        840,
+        620
+      ]
+    }
+  ],
+  "connections": {
+    "ScheduleTrigger_Reprise": {
+      "main": [
+        [
+          {
+            "node": "Postgres_ReprendreInactives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ScheduleTrigger_Purge": {
+      "main": [
+        [
+          {
+            "node": "Postgres_Purger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ScheduleTrigger_Plafond": {
+      "main": [
+        [
+          {
+            "node": "Postgres_CommercesProchesDuPlafond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_CommercesProchesDuPlafond": {
+      "main": [
+        [
+          {
+            "node": "Code_MessageAlertePlafond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_MessageAlertePlafond": {
+      "main": [
+        [
+          {
+            "node": "HTTP_AlerterAgencePlafond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ScheduleTrigger_Rapport": {
+      "main": [
+        [
+          {
+            "node": "Postgres_ListeCommercesActifs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_ListeCommercesActifs": {
+      "main": [
+        [
+          {
+            "node": "Postgres_GenererRapport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_GenererRapport": {
+      "main": [
+        [
+          {
+            "node": "Code_FormaterRapport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_FormaterRapport": {
+      "main": [
+        [
+          {
+            "node": "HTTP_EnvoyerRapportPatron",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

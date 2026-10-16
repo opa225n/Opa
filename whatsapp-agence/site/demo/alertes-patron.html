@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo — Alertes envoyées au patron</title>
+<meta name="description" content="Maquette de démonstration : alertes WhatsApp envoyées au patron par l'assistant automatique.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<div class="demo-banner">
+  <span>Aperçu de démonstration — écran statique, non connecté</span>
+  <a href="../index.html">← Retour au site</a>
+</div>
+
+<div class="demo-page">
+  <div class="phone-shell">
+
+    <header class="phone-topbar">
+      <div class="phone-avatar" aria-hidden="true">A</div>
+      <div class="phone-topbar-text">
+        <span class="commerce-name">Assistant de Boutique Démo</span>
+        <span class="commerce-sub">Alertes pour le patron</span>
+      </div>
+    </header>
+
+    <div class="chat-area" role="log" aria-label="Fil des alertes envoyées au patron">
+
+      <article class="alert-card">
+        <div class="alert-card-header is-orange">
+          <h4>Nouvelle commande</h4>
+          <span class="badge badge-a-confirmer">À confirmer</span>
+        </div>
+        <div class="alert-card-body">
+          <dl>
+            <div class="alert-row"><dt>Client</dt><dd>+225 07 XX XX XX XX</dd></div>
+            <div class="alert-row"><dt>Commande</dt><dd>2 paires de baskets</dd></div>
+            <div class="alert-row"><dt>Livraison</dt><dd>Cocody</dd></div>
+          </dl>
+          <div class="alert-actions">
+            <button class="btn btn-primary btn-sm" type="button" disabled>Écrire au client</button>
+            <button class="btn btn-outline btn-sm" type="button" disabled>Marquer traitée</button>
+          </div>
+        </div>
+        <div class="alert-time">10:44</div>
+      </article>
+
+      <article class="alert-card">
+        <div class="alert-card-header is-blue">
+          <h4>Un client veut parler à quelqu'un</h4>
+        </div>
+        <div class="alert-card-body">
+          <dl>
+            <div class="alert-row"><dt>Qui</dt><dd>+225 05 XX XX XX XX</dd></div>
+            <div class="alert-row"><dt>Demande</dt><dd>savoir si le modèle existe en pointure 42</dd></div>
+            <div class="alert-row"><dt>Déjà répondu</dt><dd>prix et livraison</dd></div>
+          </dl>
+          <div class="alert-actions">
+            <button class="btn btn-primary btn-sm btn-block" type="button" disabled>Écrire au client</button>
+          </div>
+        </div>
+        <div class="alert-time">10:51</div>
+      </article>
+
+      <div class="system-bubble">Le robot est en pause sur cette conversation. Quand vous avez fini, envoyez reprise à ce numéro.</div>
+      <div class="chat-separator">10:51</div>
+
+    </div>
+
+    <form class="input-bar" aria-label="Zone de saisie (désactivée, démonstration statique)" onsubmit="return false;">
+      <label class="sr-only" for="demo-input">Écrire un message</label>
+      <input id="demo-input" class="input-field" type="text" placeholder="Écrire un message" disabled>
+      <button class="send-btn" type="button" disabled aria-label="Envoyer (désactivé dans cette démonstration)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </form>
+
+  </div>
+</div>
+
+<style>.sr-only{position:absolute;left:-9999px;}</style>
+
+</body>
+</html>

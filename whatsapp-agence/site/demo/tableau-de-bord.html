@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo — Tableau de suivi du patron</title>
+<meta name="description" content="Maquette de démonstration : tableau de suivi du patron pour l'assistant WhatsApp automatique.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<div class="demo-banner">
+  <span>Aperçu de démonstration — données d'exemple, écran statique</span>
+  <a href="../index.html">← Retour au site</a>
+</div>
+
+<header class="dash-topbar">
+  <div class="phone-avatar" aria-hidden="true">B</div>
+  <div class="phone-topbar-text">
+    <span class="commerce-name">Boutique Démo</span>
+    <span class="commerce-sub">Espace du patron</span>
+  </div>
+  <span class="badge-donnees-exemple">Données d'exemple</span>
+</header>
+
+<div class="dash-layout">
+
+  <aside class="dash-sidebar">
+    <nav aria-label="Navigation de l'espace du patron">
+      <a href="#commandes" class="active">Commandes</a>
+      <a href="#conversations-en-pause">Conversations en pause</a>
+      <a href="#questions-sans-reponse">Questions sans réponse</a>
+      <a href="#fiche-du-commerce">Fiche du commerce</a>
+    </nav>
+  </aside>
+
+  <main class="dash-main">
+
+    <h1>Ce mois-ci</h1>
+    <p>Ce que votre assistant a traité pour vous.</p>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-value">412</span>
+        <span class="kpi-label">Messages traités</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-value">37</span>
+        <span class="kpi-label">Commandes reçues</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-value">18</span>
+        <span class="kpi-label">Transferts vers vous</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-value">9</span>
+        <span class="kpi-label">Questions sans réponse</span>
+      </div>
+    </div>
+
+    <section id="commandes" class="dash-section">
+      <h2>Commandes</h2>
+      <div class="table-wrap">
+        <table class="orders">
+          <thead>
+            <tr>
+              <th scope="col">Heure</th>
+              <th scope="col">Client</th>
+              <th scope="col">Commande</th>
+              <th scope="col">Livraison</th>
+              <th scope="col">Statut</th>
+              <th scope="col">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>10:44</td>
+              <td>+225 07 XX XX XX XX</td>
+              <td>2 paires de baskets</td>
+              <td>Cocody</td>
+              <td><span class="badge badge-nouvelle">Nouvelle</span></td>
+              <td><button class="btn btn-outline btn-sm" type="button" disabled>Confirmer</button></td>
+            </tr>
+            <tr>
+              <td>09:20</td>
+              <td>+225 05 XX XX XX XX</td>
+              <td>1 sac à dos</td>
+              <td>Yopougon</td>
+              <td><span class="badge badge-confirmee">Confirmée</span></td>
+              <td><button class="btn btn-outline btn-sm" type="button" disabled>Marquer livrée</button></td>
+            </tr>
+            <tr>
+              <td>Hier</td>
+              <td>+225 01 XX XX XX XX</td>
+              <td>3 t-shirts</td>
+              <td>Marcory</td>
+              <td><span class="badge badge-livree">Livrée</span></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>Hier</td>
+              <td>+225 07 XX XX XX XX</td>
+              <td>1 paire de sandales</td>
+              <td>Plateau</td>
+              <td><span class="badge badge-annulee">Annulée</span></td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="conversations-en-pause" class="dash-section">
+      <h2>Conversations en pause</h2>
+      <p>Le robot ne répond plus sur ces conversations tant que vous ne lui rendez pas la main.</p>
+      <div class="list-card">
+        <div class="list-row">
+          <div class="list-row-text">
+            <strong>+225 05 XX XX XX XX</strong>
+            <span>Demande : le modèle existe-t-il en pointure 42 ? · en pause depuis 10:51</span>
+          </div>
+          <button class="btn btn-outline btn-sm" type="button" disabled>Rendre la main au robot</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="questions-sans-reponse" class="dash-section">
+      <h2>Questions restées sans réponse</h2>
+      <p>Ajoutez la réponse à votre fiche : le robot saura répondre la prochaine fois.</p>
+      <div class="list-card">
+        <div class="list-row">
+          <div class="list-row-text"><strong>Faites-vous la livraison à Bouaké ?</strong></div>
+          <button class="btn btn-outline btn-sm" type="button" disabled>Ajouter à la fiche</button>
+        </div>
+        <div class="list-row">
+          <div class="list-row-text"><strong>Acceptez-vous le paiement à la livraison ?</strong></div>
+          <button class="btn btn-outline btn-sm" type="button" disabled>Ajouter à la fiche</button>
+        </div>
+        <div class="list-row">
+          <div class="list-row-text"><strong>Quand le stock est-il renouvelé ?</strong></div>
+          <button class="btn btn-outline btn-sm" type="button" disabled>Ajouter à la fiche</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="fiche-du-commerce" class="dash-section">
+      <h2>Fiche du commerce</h2>
+      <div class="fiche-card">
+        <p style="margin:0;">Version validée le [DATE]. L'assistant ne répond qu'à partir de cette fiche.</p>
+        <a class="btn btn-outline btn-sm" href="#" aria-disabled="true">Voir et modifier la fiche</a>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+</body>
+</html>

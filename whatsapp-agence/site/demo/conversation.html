@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Démo — Conversation client</title>
+<meta name="description" content="Maquette de démonstration : conversation entre un client et l'assistant WhatsApp automatique.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body>
+
+<div class="demo-banner">
+  <span>Aperçu de démonstration — écran statique, non connecté</span>
+  <a href="../index.html">← Retour au site</a>
+</div>
+
+<div class="demo-page">
+  <div class="phone-shell">
+
+    <header class="phone-topbar">
+      <div class="phone-avatar" aria-hidden="true">B</div>
+      <div class="phone-topbar-text">
+        <span class="commerce-name">Boutique Démo</span>
+        <span class="commerce-sub">Assistant automatique · répond en quelques secondes</span>
+      </div>
+    </header>
+
+    <div class="chat-area" role="log" aria-label="Fil de conversation avec l'assistant">
+
+      <div class="chat-separator">Aujourd'hui</div>
+
+      <div class="bubble-row from-bot">
+        <div class="bubble from-bot-bg">Bonjour et bienvenue chez Boutique Démo ! Je suis l'assistant automatique. Que puis-je faire pour vous ?</div>
+        <span class="bubble-time">10:42</span>
+      </div>
+
+      <div class="menu-row" role="group" aria-label="Choix proposés par l'assistant (démonstration, non cliquables)">
+        <span class="menu-pill">Voir les prix</span>
+        <span class="menu-pill">Commander</span>
+        <span class="menu-pill">Horaires et adresse</span>
+        <span class="menu-pill">Parler à quelqu'un</span>
+      </div>
+
+      <div class="bubble-row from-client">
+        <div class="bubble from-client-bg">Je voudrais commander 2 paires de baskets, livraison à Cocody.</div>
+        <span class="bubble-time">10:43</span>
+      </div>
+
+      <div class="bubble-row from-bot">
+        <div class="bubble from-bot-bg">
+          Voici votre commande :
+          <div class="bubble-recap">
+            <ul>
+              <li>2 paires de baskets</li>
+              <li>Livraison à Cocody</li>
+            </ul>
+            Confirmez-vous ? Répondez OUI, ou dites-moi ce qu'il faut corriger.
+          </div>
+        </div>
+        <span class="bubble-time">10:43</span>
+      </div>
+
+      <div class="bubble-row from-client">
+        <div class="bubble from-client-bg">OUI</div>
+        <span class="bubble-time">10:44</span>
+      </div>
+
+      <div class="bubble-row from-bot">
+        <div class="bubble from-bot-bg">Merci, votre commande est enregistrée. L'équipe vous contactera pour la suite.</div>
+        <span class="bubble-time">10:44</span>
+      </div>
+
+    </div>
+
+    <form class="input-bar" aria-label="Zone de saisie (désactivée, démonstration statique)" onsubmit="return false;">
+      <label class="sr-only" for="demo-input">Écrire un message</label>
+      <input id="demo-input" class="input-field" type="text" placeholder="Écrire un message" disabled>
+      <button class="send-btn" type="button" disabled aria-label="Envoyer (désactivé dans cette démonstration)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+      </button>
+    </form>
+
+  </div>
+</div>
+
+<style>.sr-only{position:absolute;left:-9999px;}</style>
+
+</body>
+</html>

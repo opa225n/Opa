@@ -1,0 +1,640 @@
+{
+  "name": "03 - API interne admin",
+  "nodes": [
+    {
+      "parameters": {
+        "width": 360,
+        "height": 240,
+        "content": "## Securite\n\nCe webhook n'est PAS public : il doit rester accessible uniquement depuis votre propre reseau (ou protege par un reverse proxy qui exige un en-tete supplementaire). La cle ADMIN_API_KEY est une premiere barriere, pas une authentification complete. En attendant un vrai tableau de bord (hors MVP, voir Plan d'implementation), appelez ces routes via curl/Postman depuis votre poste, jamais depuis un site public. Credential Postgres : role admin_agence (comme le workflow 02).",
+        "color": 5
+      },
+      "id": "sn0",
+      "name": "Note - securite",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -260
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "interne",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_admin",
+      "name": "Webhook_Admin",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const cle = ($json.headers || {})['x-admin-key'];\nconst valide = !!cle && cle === $env.ADMIN_API_KEY;\nreturn { ...$json, cle_valide: valide };"
+      },
+      "id": "code_verifier_cle",
+      "name": "Code_VerifierCle",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cle-c1",
+              "leftValue": "={{ $json.cle_valide }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_cle_valide",
+      "name": "If_CleValide",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        320,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: false, erreur: 'cle admin invalide ou absente' }) }}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "id": "resp_401",
+      "name": "Respond_NonAutorise",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if_action_activer_fiche-c1",
+              "leftValue": "={{ $json.body.action }}",
+              "rightValue": "activer-fiche",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_action_activer_fiche",
+      "name": "If_ActionActiverFiche",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        580,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select activer_fiche($1,$2,$3) as fiche_id;",
+        "options": {
+          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }},={{ $('Webhook_Admin').item.json.body.contenu }},={{ $('Webhook_Admin').item.json.body.validee_par }}"
+        }
+      },
+      "id": "pg_activer_fiche",
+      "name": "Postgres_ActiverFiche",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        840,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: true, fiche_id: $json.fiche_id }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "resp_activer_fiche",
+      "name": "Respond_FicheActivee",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if_action_statut_commande-c1",
+              "leftValue": "={{ $('Webhook_Admin').item.json.body.action }}",
+              "rightValue": "changer-statut-commande",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_action_statut_commande",
+      "name": "If_ActionChangerStatutCommande",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        840,
+        420
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select changer_statut_commande($1,$2,$3);",
+        "options": {
+          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }},={{ $('Webhook_Admin').item.json.body.commande_id }},={{ $('Webhook_Admin').item.json.body.statut }}"
+        }
+      },
+      "id": "pg_changer_statut",
+      "name": "Postgres_ChangerStatutCommande",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1100,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: true }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "resp_statut_commande",
+      "name": "Respond_StatutChange",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1360,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if_action_reprise-c1",
+              "leftValue": "={{ $('Webhook_Admin').item.json.body.action }}",
+              "rightValue": "reprise-manuelle",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_action_reprise",
+      "name": "If_ActionRepriseManuelle",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select rendre_la_main_au_robot($1,$2);",
+        "options": {
+          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }},={{ $('Webhook_Admin').item.json.body.conversation_id }}"
+        }
+      },
+      "id": "pg_reprise_manuelle",
+      "name": "Postgres_RepriseManuelle",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1360,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: true }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "resp_reprise",
+      "name": "Respond_RepriseFaite",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1620,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if_action_supprimer_contact-c1",
+              "leftValue": "={{ $('Webhook_Admin').item.json.body.action }}",
+              "rightValue": "supprimer-contact",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_action_supprimer_contact",
+      "name": "If_ActionSupprimerContact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select effacer_contact($1,$2);",
+        "options": {
+          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }},={{ $('Webhook_Admin').item.json.body.numero }}"
+        }
+      },
+      "id": "pg_supprimer_contact",
+      "name": "Postgres_SupprimerContact",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1620,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: true }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "resp_supprimer_contact",
+      "name": "Respond_ContactSupprime",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1880,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if_action_rapport-c1",
+              "leftValue": "={{ $('Webhook_Admin').item.json.body.action }}",
+              "rightValue": "rapport",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_action_rapport",
+      "name": "If_ActionRapport",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1620,
+        840
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select generer_rapport_mensuel($1) as rapport;",
+        "options": {
+          "queryReplacement": "={{ $('Webhook_Admin').item.json.body.commerce_id }}"
+        }
+      },
+      "id": "pg_rapport_admin",
+      "name": "Postgres_RapportAdmin",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        1880,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: true, rapport: $json.rapport }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "resp_rapport",
+      "name": "Respond_Rapport",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        2140,
+        740
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ ({ ok: false, erreur: 'action inconnue : attendu activer-fiche, changer-statut-commande, reprise-manuelle, supprimer-contact ou rapport' }) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "resp_action_inconnue",
+      "name": "Respond_ActionInconnue",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1880,
+        940
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook_Admin": {
+      "main": [
+        [
+          {
+            "node": "Code_VerifierCle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_VerifierCle": {
+      "main": [
+        [
+          {
+            "node": "If_CleValide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_CleValide": {
+      "main": [
+        [
+          {
+            "node": "If_ActionActiverFiche",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond_NonAutorise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_ActionActiverFiche": {
+      "main": [
+        [
+          {
+            "node": "Postgres_ActiverFiche",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_ActionChangerStatutCommande",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_ActiverFiche": {
+      "main": [
+        [
+          {
+            "node": "Respond_FicheActivee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_ActionChangerStatutCommande": {
+      "main": [
+        [
+          {
+            "node": "Postgres_ChangerStatutCommande",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_ActionRepriseManuelle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_ChangerStatutCommande": {
+      "main": [
+        [
+          {
+            "node": "Respond_StatutChange",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_ActionRepriseManuelle": {
+      "main": [
+        [
+          {
+            "node": "Postgres_RepriseManuelle",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_ActionSupprimerContact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_RepriseManuelle": {
+      "main": [
+        [
+          {
+            "node": "Respond_RepriseFaite",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_ActionSupprimerContact": {
+      "main": [
+        [
+          {
+            "node": "Postgres_SupprimerContact",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If_ActionRapport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_SupprimerContact": {
+      "main": [
+        [
+          {
+            "node": "Respond_ContactSupprime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_ActionRapport": {
+      "main": [
+        [
+          {
+            "node": "Postgres_RapportAdmin",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond_ActionInconnue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres_RapportAdmin": {
+      "main": [
+        [
+          {
+            "node": "Respond_Rapport",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

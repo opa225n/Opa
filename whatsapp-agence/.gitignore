@@ -1,0 +1,11 @@
+# Secrets réels — ne jamais committer (voir .env.example pour le gabarit)
+.env
+*.env.local
+
+# Données locales Docker si montées en bind plutôt qu'en volume nommé
+postgres-data/
+n8n-data/
+
+# Sauvegardes locales éventuelles
+*.sql.gpg
+*.dump
