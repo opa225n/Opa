@@ -23,6 +23,103 @@
     },
     {
       "parameters": {
+        "httpMethod": "GET",
+        "path": "whatsapp",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_verify_get",
+      "name": "Webhook_VerifierGET",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "language": "javaScript",
+        "jsCode": "const q = $json.query || {};\nconst ok = q['hub.mode'] === 'subscribe' && q['hub.verify_token'] === $env.META_VERIFY_TOKEN;\nreturn { ok, challenge: q['hub.challenge'] || '' };"
+      },
+      "id": "code_verifier_token_get",
+      "name": "Code_VerifierTokenGET",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        60,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "if_token_get_valide-c1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if_token_get_valide",
+      "name": "If_TokenGetValide",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        320,
+        -220
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.challenge }}",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "id": "resp_get_ok",
+      "name": "Respond_VerificationOK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        -300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ 'jeton de verification invalide' }}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "id": "resp_get_refuse",
+      "name": "Respond_VerificationRefusee",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        -140
+      ]
+    },
+    {
+      "parameters": {
         "width": 320,
         "height": 260,
         "content": "## Webhook Meta\n\n- Chemin de production : `/webhook/whatsapp` (GET pour la vérification Meta, géré par le workflow 03 ou un nœud GET séparé à ajouter ; ce workflow ne traite que le POST).\n- Option **Raw Body** activée : indispensable pour que `Code_VerifierSignature` puisse recalculer le HMAC (TRD §4).\n- `responseMode = onReceived` : on répond 200 immédiatement, Meta n'a pas à attendre la fin du traitement (budget 2 s, TRD §4).",
@@ -896,6 +993,46 @@
     }
   ],
   "connections": {
+    "Webhook_VerifierGET": {
+      "main": [
+        [
+          {
+            "node": "Code_VerifierTokenGET",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_VerifierTokenGET": {
+      "main": [
+        [
+          {
+            "node": "If_TokenGetValide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If_TokenGetValide": {
+      "main": [
+        [
+          {
+            "node": "Respond_VerificationOK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond_VerificationRefusee",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Webhook_Receive": {
       "main": [
         [

@@ -153,12 +153,9 @@ Dans l'app Meta > WhatsApp > Configuration :
 - Jeton de vérification : la valeur de `META_VERIFY_TOKEN`
 - Abonnez le champ **`messages`**.
 
-**Problème connu :** ce dossier expose le chemin `/webhook/whatsapp` en POST
-dans le workflow 01. La vérification GET de Meta (lors de l'enregistrement de
-l'URL) doit être traitée par un nœud Webhook GET séparé sur le même chemin —
-ajoutez-en un dans n8n si l'écran de configuration Meta renvoie une erreur de
-vérification (Webhook GET → vérifier `hub.verify_token` dans les paramètres
-de requête → répondre `hub.challenge` en texte brut, code 200).
+Le workflow 01 gère les deux requêtes sur le même chemin `/webhook/whatsapp` :
+le nœud `Webhook_VerifierGET` répond au défi de vérification de Meta, et
+`Webhook_Receive` (POST) traite les messages.
 
 **Sortie de phase 1 :** un message WhatsApp envoyé depuis votre téléphone au
 numéro de test apparaît dans la table `messages` (`select * from messages
