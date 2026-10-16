@@ -43,6 +43,13 @@ services:
       N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
       GENERIC_TIMEZONE: ${TZ}
       TZ: ${TZ}
+      # Indispensable pour que le noeud Code_VerifierSignature (workflow 01)
+      # puisse faire require('crypto') : n8n bloque les modules natifs Node
+      # dans le bac à sable JS des workflows sauf autorisation explicite.
+      # Constaté en test réel — sans cette ligne, la vérification de
+      # signature Meta échoue systématiquement avec "Module 'crypto' is
+      # disallowed", qui n'apparaît que dans l'historique d'exécution n8n.
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
       # Secrets métier transmis aux workflows via les variables d'environnement n8n
       # (lues par les noeuds Code — jamais écrites en dur dans un flux exporté).
       META_APP_SECRET: ${META_APP_SECRET}
