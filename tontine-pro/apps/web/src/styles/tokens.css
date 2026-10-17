@@ -1,0 +1,74 @@
+/* Design tokens — fidèles au document UI/UX du dossier projet (couleurs, typo, grille, composants). */
+:root {
+  /* Couleurs */
+  --color-primary: #0e7c4a;
+  --color-primary-dark: #0a5a36;
+  --color-primary-light: #e3f3ea;
+  --color-accent: #f28c28;
+  --color-success: #1e9e5a;
+  --color-warning: #e8a317;
+  --color-error: #d93b3b;
+  --color-text: #1f2933;
+  --color-text-secondary: #5b6770;
+  --color-bg: #f7f8f7;
+  --color-surface: #ffffff;
+  --color-border: #dde2e0;
+
+  /* Typographie */
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-heading: "Sora", system-ui, sans-serif;
+
+  /* Grille 4dp / espacements multiples de 8 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-card: 16px;
+  --radius-control: 12px;
+  --tap-min: 48px;
+  --bottom-nav-h: 64px;
+  --top-bar-h: 56px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-text: #e8ecea;
+    --color-text-secondary: #a6b0ac;
+    --color-bg: #121614;
+    --color-surface: #1b211e;
+    --color-border: #2a322e;
+    --color-primary-light: #16342598;
+  }
+}
+:root[data-theme="dark"] {
+  --color-text: #e8ecea;
+  --color-text-secondary: #a6b0ac;
+  --color-bg: #121614;
+  --color-surface: #1b211e;
+  --color-border: #2a322e;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 16px;
+  line-height: 24px;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--font-heading); margin: 0; color: var(--color-text); }
+
+.text-amount { font-family: var(--font-heading); font-weight: 700; font-size: 32px; line-height: 40px; }
+.text-screen-title { font-family: var(--font-heading); font-weight: 600; font-size: 22px; line-height: 28px; }
+.text-section-title { font-family: var(--font-heading); font-weight: 600; font-size: 18px; line-height: 24px; }
+.text-body { font-size: 16px; line-height: 24px; }
+.text-body-strong { font-size: 16px; line-height: 24px; font-weight: 600; }
+.text-caption { font-size: 14px; line-height: 20px; color: var(--color-text-secondary); }
+.text-legal { font-size: 12px; line-height: 16px; color: var(--color-text-secondary); }
+
+a { color: var(--color-primary-dark); text-decoration: none; }

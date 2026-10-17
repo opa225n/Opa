@@ -1,0 +1,14 @@
+{
+  "name": "Tontine",
+  "short_name": "Tontine",
+  "description": "Gérez vos tontines : membres, cotisations, tours et versements.",
+  "start_url": "./#/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f8f7",
+  "theme_color": "#0e7c4a",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
