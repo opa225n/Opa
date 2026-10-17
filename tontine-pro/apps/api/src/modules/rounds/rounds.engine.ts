@@ -111,8 +111,24 @@ export async function checkRoundCompletion(roundId: string) {
 /** Clôture un tour alors que des membres sont encore en retard (décision du président, cf. parcours P5). */
 export async function closeRoundWithAbsentees(roundId: string, actorId: string) {
   const round = await prisma.round.findUniqueOrThrow({ where: { id: roundId } });
+  const unsettled = await prisma.contribution.findMany({
+    where: { roundId, status: { notIn: ["paid", "waived"] } },
+    include: { membership: true },
+  });
   await prisma.round.update({ where: { id: roundId }, data: { status: "closed", closedAt: new Date() } });
   await recordAudit(round.tontineId, actorId, "round_closed_with_absentees", { roundId });
+  // Règle n°4 du PRD : la cotisation reste due même après la clôture du tour — on le rappelle
+  // explicitement à chaque membre resté absent, avec le montant qui lui est propre (pénalité incluse).
+  await Promise.all(
+    unsettled.map((c) =>
+      notify(
+        c.membership.userId,
+        "president_decision",
+        "Tour clôturé sans vous",
+        `Le tour ${round.roundNumber} a été clôturé par le président sans votre cotisation. Vous devez toujours ${c.amountDue + c.penaltyAmount} FCFA — contactez le président pour régulariser.`,
+      ),
+    ),
+  );
   await requestPayout(roundId);
 }
 

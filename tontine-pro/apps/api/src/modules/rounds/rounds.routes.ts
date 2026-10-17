@@ -96,7 +96,9 @@ roundsRouter.post(
 
     if (action === "waive_penalty") {
       if (!reason) throw Errors.validation("Un motif est requis pour annuler une pénalité.");
-      await prisma.contribution.update({ where: { id: contributionId }, data: { status: "waived", penaltyAmount: 0n } });
+      // N'annule que la pénalité : la cotisation de base reste due, le membre doit toujours payer
+      // (contrairement à "waived", qui excuserait toute la cotisation — réservé à close_without_member).
+      await prisma.contribution.update({ where: { id: contributionId }, data: { status: "due", penaltyAmount: 0n } });
       await notify(contribution.membership.userId, "president_decision", "Pénalité annulée", `Le président a annulé votre pénalité. Motif : ${reason}`);
     } else if (action === "keep_penalty") {
       await notify(contribution.membership.userId, "president_decision", "Pénalité maintenue", "Le président a maintenu la pénalité de retard.");

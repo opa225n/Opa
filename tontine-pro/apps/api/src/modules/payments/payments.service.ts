@@ -215,10 +215,15 @@ async function handleContributionPaymentOutcome(
 }
 
 /**
- * Déclenche le versement du pot d'un tour (appelé quand le tour est complet).
+ * Déclenche le versement du pot d'un tour (appelé quand le tour est complet ou clôturé avec des
+ * absents). Le montant versé est la somme des cotisations réellement payées pour ce tour — jamais
+ * le pot théorique `round.potAmount` (cotisation × nb membres), qui suppose à tort que tout le
+ * monde a cotisé : un tour clôturé avec des absents (close_without_member) n'a collecté qu'une
+ * partie du pot, et verser le montant théorique enverrait de l'argent jamais réellement reçu.
+ *
  * Idempotent : l'écriture "tour complet, pot à verser" ne doit jamais s'écrire deux fois pour le
  * même tour — sinon chaque relance d'un versement en échec la rejouerait en double. On ne l'écrit
- * donc que si le tour n'a pas déjà quitté l'état "complete".
+ * donc que si le tour vient tout juste de se solder ("complete" ou "closed").
  */
 export async function requestPayout(roundId: string) {
   const round = await prisma.round.findUniqueOrThrow({
@@ -226,26 +231,41 @@ export async function requestPayout(roundId: string) {
     include: { tontine: true, beneficiary: { include: { user: true } } },
   });
 
-  if (round.status === "complete") {
+  const paidContributions = await prisma.contribution.findMany({
+    where: { roundId, status: "paid" },
+    select: { amountDue: true },
+  });
+  const collectedAmount = paidContributions.reduce((sum, c) => sum + c.amountDue, 0n);
+
+  if (round.status === "complete" || round.status === "closed") {
     await prisma.$transaction(async (tx) => {
-      await writeLedgerTransaction(
-        tx,
-        round.tontineId,
-        [
-          { account: Accounts.contributionsReceived(round.tontineId), debit: round.potAmount, reason: "Tour complet, pot à verser" },
-          { account: Accounts.potPayable(round.tontineId), credit: round.potAmount, reason: "Tour complet, pot à verser" },
-        ],
-        { roundId: round.id },
-      );
+      if (collectedAmount > 0n) {
+        await writeLedgerTransaction(
+          tx,
+          round.tontineId,
+          [
+            { account: Accounts.contributionsReceived(round.tontineId), debit: collectedAmount, reason: "Tour complet, pot à verser" },
+            { account: Accounts.potPayable(round.tontineId), credit: collectedAmount, reason: "Tour complet, pot à verser" },
+          ],
+          { roundId: round.id },
+        );
+      }
       // cf. TRD : machine à états du tour — complete -> payout_pending -> paid_out
       await tx.round.update({ where: { id: round.id }, data: { status: "payout_pending" } });
     });
   }
 
+  if (collectedAmount <= 0n) {
+    // Personne n'a cotisé (tous absents) : rien à verser, on passe directement au tour suivant.
+    const { onPayoutConfirmed } = await import("../rounds/rounds.engine");
+    await onPayoutConfirmed(round.id);
+    return;
+  }
+
   const payout = await prisma.payout.upsert({
     where: { roundId },
     update: {},
-    create: { roundId, beneficiaryMembershipId: round.beneficiaryMembershipId, amount: round.potAmount, status: "pending" },
+    create: { roundId, beneficiaryMembershipId: round.beneficiaryMembershipId, amount: collectedAmount, status: "pending" },
   });
 
   await sendPayout(payout.id);
