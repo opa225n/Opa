@@ -48,7 +48,9 @@ adminPaymentsRouter.get(
   h(async (_req, res) => {
     const [failedPayments, failedPayouts] = await Promise.all([
       prisma.payment.findMany({
-        where: { status: "failed" },
+        // Seuls les paiements entrants (cotisations) : les tentatives de versement échouées sont
+        // déjà listées ci-dessous via la table payouts, avec leur nombre total de tentatives.
+        where: { status: "failed", direction: "in" },
         orderBy: { updatedAt: "desc" },
         take: 100,
         include: { contribution: { include: { membership: { include: { user: true, tontine: true } } } } },
@@ -86,8 +88,8 @@ adminPaymentsRouter.post(
     const payout = await prisma.payout.findUniqueOrThrow({ where: { id: req.params.id } });
     if (payout.status !== "failed") throw Errors.conflict("PAYOUT_NOT_FAILED", "Ce versement n'est pas en échec.");
     await prisma.payout.update({ where: { id: payout.id }, data: { status: "pending", attempts: 0 } });
-    const { requestPayout } = await import("../payments/payments.service");
-    await requestPayout(payout.roundId);
+    const { retryPayout } = await import("../payments/payments.service");
+    await retryPayout(payout.roundId);
     await recordAudit(null, null, "admin_payout_retried", { adminId: req.adminId, payoutId: payout.id });
     res.json({ ok: true });
   }),
