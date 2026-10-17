@@ -7,6 +7,7 @@ import {
   renderSetupProfile,
   renderSetupPin,
   renderUnlock,
+  renderSuspended,
 } from "./screens/auth.js";
 import { renderHome } from "./screens/home.js";
 import {
@@ -46,6 +47,7 @@ route("/setup-profile", renderSetupProfile);
 route("/setup-pin", renderSetupPin);
 route("/unlock", renderUnlock);
 route("/join/:token", renderJoin);
+route("/suspended", renderSuspended);
 
 route("/home", guarded(renderHome));
 route("/create", guarded(renderCreateInfo));

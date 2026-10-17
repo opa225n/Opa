@@ -6,6 +6,21 @@ const view = () => document.getElementById("view");
 let pendingPhone = "";
 let resendAt = 0;
 
+export function renderSuspended() {
+  const message = sessionStorage.getItem("tontine.suspendedMessage") || "Ce compte a été suspendu.";
+  sessionStorage.removeItem("tontine.suspendedMessage");
+  sessionStorage.removeItem("tontine.unlocked");
+  view().innerHTML = `
+    <div class="screen center" style="justify-content:center; min-height:100vh; gap: var(--space-4);">
+      <div style="font-size:56px;">🚫</div>
+      <h1 class="text-screen-title">Compte suspendu</h1>
+      <p class="text-body muted">${message}</p>
+      <p class="text-caption">Si vous pensez qu'il s'agit d'une erreur, contactez l'équipe Tontine.</p>
+      <button class="btn btn-secondary" id="back-home">Retour à l'accueil</button>
+    </div>`;
+  view().querySelector("#back-home").onclick = () => navigate("/");
+}
+
 export function renderWelcome() {
   view().innerHTML = `
     <div class="screen center" style="justify-content:center; min-height:100vh; gap: var(--space-5);">
