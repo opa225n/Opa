@@ -21,7 +21,9 @@ payoutRouter.get(
     res.json({
       roundId: round.id,
       roundNumber: round.roundNumber,
-      amount: round.potAmount,
+      // Montant réellement versé une fois le versement initié (peut être inférieur au pot théorique
+      // si le tour a été clôturé avec des absents) ; avant cela, le pot théorique sert d'estimation.
+      amount: round.payout?.amount ?? round.potAmount,
       status: round.payout?.status ?? "pending",
       beneficiaryName: round.beneficiary.user.fullName || maskPhone(round.beneficiary.user.phone),
       isBeneficiary,
