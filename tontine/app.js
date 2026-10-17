@@ -164,9 +164,9 @@ function renderNew() {
       <div class="grid2">
         <label>Fréquence
           <select name="frequency">
-            <option value="monthly" selected>Mensuelle</option>
+            <option value="weekly" selected>Hebdomadaire</option>
             <option value="biweekly">Toutes les 2 semaines</option>
-            <option value="weekly">Hebdomadaire</option>
+            <option value="monthly">Mensuelle</option>
           </select>
         </label>
         <label>Date de début<input type="date" name="startDate" value="${todayISO()}" required></label>
