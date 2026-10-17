@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../common/prisma";
 import { Errors } from "../../common/errors";
-import { Accounts, writeLedgerTransaction } from "../ledger/ledger.service";
+import { Accounts, writeLedgerTransaction, type LedgerLine } from "../ledger/ledger.service";
 import { notify } from "../notifications/notifications.service";
 import { simulatedPaymentProvider } from "../../providers/payments/simulated";
 
@@ -165,10 +165,17 @@ async function handleContributionPaymentOutcome(
         where: { id: contribution.id },
         data: { status: "paid", amountPaid: payment.amount, paidAt: new Date() },
       });
-      const lines = [
-        { account: Accounts.providerClearing, debit: payment.amount, reason: "Cotisation confirmée" },
-        { account: Accounts.contributionsReceived(tontineId), credit: payment.amount, reason: "Cotisation confirmée" },
-      ];
+      // La pénalité de retard est comptabilisée à part de la cotisation (cf. TRD, table des
+      // écritures du grand livre : "Pénalité payée" crédite penalties_collected, pas contributions_received).
+      const penaltyPortion = contribution.penaltyAmount < payment.amount ? contribution.penaltyAmount : payment.amount;
+      const basePortion = payment.amount - penaltyPortion;
+      const lines: LedgerLine[] = [{ account: Accounts.providerClearing, debit: payment.amount, reason: "Cotisation confirmée" }];
+      if (basePortion > 0n) {
+        lines.push({ account: Accounts.contributionsReceived(tontineId), credit: basePortion, reason: "Cotisation confirmée" });
+      }
+      if (penaltyPortion > 0n) {
+        lines.push({ account: Accounts.penaltiesCollected, credit: penaltyPortion, reason: "Pénalité de retard payée" });
+      }
       await writeLedgerTransaction(tx, tontineId, lines, { roundId: contribution.roundId, paymentId: payment.id });
       if (payment.fee > 0n) {
         await writeLedgerTransaction(
