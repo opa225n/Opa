@@ -48,6 +48,13 @@ async function request(path, { method = "GET", body, auth = true, retry = true }
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
+    // Compte suspendu par un administrateur (écran back-office B02) : coupe l'accès partout plutôt
+    // que de laisser chaque écran gérer l'erreur à sa façon (ce qui laissait une page blanche).
+    if (res.status === 403 && data?.code === "FORBIDDEN" && auth && location.hash !== "#/suspended") {
+      sessionStorage.setItem("tontine.suspendedMessage", data.message || "Ce compte a été suspendu.");
+      clearTokens();
+      location.hash = "#/suspended";
+    }
     throw new ApiClientError(res.status, data?.code || "UNKNOWN", data?.message || "Erreur réseau.", data?.details);
   }
   return data;
