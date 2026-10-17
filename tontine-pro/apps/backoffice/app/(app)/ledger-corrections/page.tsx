@@ -139,7 +139,7 @@ function CorrectionForm({ onDone, onCancel }: { onDone: () => void; onCancel: ()
         tontineId,
         originalTxId: txId,
         reason,
-        correctedLines: lines.filter((l) => l.account),
+        correctedLines: lines.filter((l) => l.account).map((l) => ({ ...l, reason })),
       });
       onDone();
     } catch (err: any) {
