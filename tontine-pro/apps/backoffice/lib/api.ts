@@ -1,7 +1,12 @@
 // Client API admin — fetch côté client uniquement (pas de server components pour les données :
 // on reste simple et cohérent avec le client fetch de l'app mobile).
 const DEFAULT_BASE = typeof window !== "undefined" ? `${location.protocol}//${location.hostname}:4000/v1/admin` : "";
-export const ADMIN_API_BASE = (typeof window !== "undefined" && (window as any).TONTINE_ADMIN_API_BASE) || DEFAULT_BASE;
+// NEXT_PUBLIC_API_BASE_URL permet de pointer vers une API déployée séparément (ex. Vercel) ;
+// sinon on retombe sur le même host que le back-office, port 4000 (dev local).
+export const ADMIN_API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  (typeof window !== "undefined" && (window as any).TONTINE_ADMIN_API_BASE) ||
+  DEFAULT_BASE;
 
 const TOKEN_KEY = "tontine_admin_token";
 const ADMIN_KEY = "tontine_admin_profile";
