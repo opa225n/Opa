@@ -5,6 +5,7 @@ import { h } from "../../common/asyncHandler";
 import { requireAdminAuth } from "../../common/adminAuth";
 import { Errors } from "../../common/errors";
 import { recordAudit } from "../audit/audit.service";
+import { notify } from "../notifications/notifications.service";
 
 export const adminDisputesRouter = Router();
 adminDisputesRouter.use(requireAdminAuth);
@@ -59,6 +60,14 @@ adminDisputesRouter.post(
       disputeId: dispute.id,
       outcome: parsed.data.outcome,
     });
+    // Boucle le signalement : celui qui l'a soulevé doit savoir ce qu'il en est, pas seulement
+    // le deviner en revenant consulter l'app plus tard.
+    await notify(
+      dispute.raisedByUserId,
+      "dispute_resolved",
+      parsed.data.outcome === "resolved" ? "Votre signalement a été résolu" : "Votre signalement a été examiné",
+      parsed.data.resolution,
+    );
     res.json({ ok: true });
   }),
 );
