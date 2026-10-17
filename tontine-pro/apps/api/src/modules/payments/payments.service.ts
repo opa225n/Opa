@@ -214,26 +214,33 @@ async function handleContributionPaymentOutcome(
   }
 }
 
-/** Déclenche le versement du pot d'un tour (appelé quand le tour est complet). */
+/**
+ * Déclenche le versement du pot d'un tour (appelé quand le tour est complet).
+ * Idempotent : l'écriture "tour complet, pot à verser" ne doit jamais s'écrire deux fois pour le
+ * même tour — sinon chaque relance d'un versement en échec la rejouerait en double. On ne l'écrit
+ * donc que si le tour n'a pas déjà quitté l'état "complete".
+ */
 export async function requestPayout(roundId: string) {
   const round = await prisma.round.findUniqueOrThrow({
     where: { id: roundId },
     include: { tontine: true, beneficiary: { include: { user: true } } },
   });
 
-  await prisma.$transaction(async (tx) => {
-    await writeLedgerTransaction(
-      tx,
-      round.tontineId,
-      [
-        { account: Accounts.contributionsReceived(round.tontineId), debit: round.potAmount, reason: "Tour complet, pot à verser" },
-        { account: Accounts.potPayable(round.tontineId), credit: round.potAmount, reason: "Tour complet, pot à verser" },
-      ],
-      { roundId: round.id },
-    );
-    // cf. TRD : machine à états du tour — complete -> payout_pending -> paid_out
-    await tx.round.update({ where: { id: round.id }, data: { status: "payout_pending" } });
-  });
+  if (round.status === "complete") {
+    await prisma.$transaction(async (tx) => {
+      await writeLedgerTransaction(
+        tx,
+        round.tontineId,
+        [
+          { account: Accounts.contributionsReceived(round.tontineId), debit: round.potAmount, reason: "Tour complet, pot à verser" },
+          { account: Accounts.potPayable(round.tontineId), credit: round.potAmount, reason: "Tour complet, pot à verser" },
+        ],
+        { roundId: round.id },
+      );
+      // cf. TRD : machine à états du tour — complete -> payout_pending -> paid_out
+      await tx.round.update({ where: { id: round.id }, data: { status: "payout_pending" } });
+    });
+  }
 
   const payout = await prisma.payout.upsert({
     where: { roundId },
@@ -242,6 +249,11 @@ export async function requestPayout(roundId: string) {
   });
 
   await sendPayout(payout.id);
+}
+
+/** Relance l'envoi d'un versement déjà comptabilisé (écran back-office « Tâches en échec »). */
+export async function retryPayout(roundId: string) {
+  return requestPayout(roundId);
 }
 
 async function sendPayout(payoutId: string) {
