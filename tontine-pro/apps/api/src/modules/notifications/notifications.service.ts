@@ -11,6 +11,7 @@ export type NotificationType =
   | "payment_failed"
   | "late"
   | "president_decision"
+  | "dispute_resolved"
   | "payout_sent"
   | "payout_received"
   | "payout_failed"

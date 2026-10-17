@@ -5,7 +5,7 @@ const view = () => document.getElementById("view");
 const ICONS = {
   invitation: "✉️", new_member: "👋", cycle_started: "🚀", round_open: "📅",
   payment_reminder: "⏰", payment_confirmed: "✅", payment_failed: "❌", late: "⚠️",
-  president_decision: "⚖️", payout_sent: "💸", payout_received: "🎉", payout_failed: "⚠️", cycle_completed: "🏁",
+  president_decision: "⚖️", dispute_resolved: "🚩", payout_sent: "💸", payout_received: "🎉", payout_failed: "⚠️", cycle_completed: "🏁",
 };
 
 export async function renderNotifications() {
