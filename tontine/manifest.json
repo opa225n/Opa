@@ -1,0 +1,11 @@
+{
+  "name": "Tontine Manager",
+  "short_name": "Tontine",
+  "description": "Gérez vos tontines : membres, cotisations, tours de rotation et soldes.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a120e",
+  "theme_color": "#0a120e",
+  "icons": [{ "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
