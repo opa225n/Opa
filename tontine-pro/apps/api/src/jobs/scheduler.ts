@@ -6,7 +6,7 @@ import { notify } from "../modules/notifications/notifications.service";
  * (cf. PRD règle n°3). En environnement réel ce serait un worker planifié (BullMQ) — ici un simple
  * intervalle en mémoire, suffisant pour une démo mono-instance.
  */
-async function markLateContributions() {
+export async function markLateContributions() {
   const dueContributions = await prisma.contribution.findMany({
     where: { status: "due" },
     include: { round: { include: { tontine: true } }, membership: true },
@@ -34,7 +34,7 @@ async function markLateContributions() {
 }
 
 /** Rappels J-2/J-1 avant l'échéance (cf. parcours P4). */
-async function sendDueReminders() {
+export async function sendDueReminders() {
   const soon = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
   const dueContributions = await prisma.contribution.findMany({
     where: { status: "due", round: { dueDate: { lte: soon } } },

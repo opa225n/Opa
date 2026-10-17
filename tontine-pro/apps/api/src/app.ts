@@ -11,6 +11,18 @@ import { historyRouter } from "./modules/tontines/history.routes";
 import { contributionsRouter, paymentsRouter } from "./modules/contributions/contributions.routes";
 import { notificationsRouter } from "./modules/notifications/notifications.routes";
 import { wireSimulatedWebhooks } from "./modules/payments/payments.service";
+import { markLateContributions, sendDueReminders } from "./jobs/scheduler";
+import { h } from "./common/asyncHandler";
+
+function requireCronSecret(req: express.Request, res: express.Response, next: express.NextFunction) {
+  // Vercel envoie automatiquement ce header pour les Cron Jobs configurés dans vercel.json,
+  // dès qu'une variable d'environnement CRON_SECRET est définie sur le projet.
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+    return res.status(401).json({ code: "UNAUTHORIZED", message: "Tâche planifiée non autorisée." });
+  }
+  next();
+}
 
 export function createApp() {
   wireSimulatedWebhooks();
@@ -32,6 +44,26 @@ export function createApp() {
   app.use("/v1/contributions", contributionsRouter);
   app.use("/v1/payments", paymentsRouter);
   app.use("/v1/notifications", notificationsRouter);
+
+  // Déclenchées par Vercel Cron en production (cf. vercel.json) à la place du setInterval
+  // en mémoire utilisé par startScheduler() en développement local (incompatible avec le
+  // modèle serverless, où aucun process ne reste actif entre deux requêtes).
+  app.get(
+    "/v1/internal/cron/mark-late",
+    requireCronSecret,
+    h(async (_req, res) => {
+      await markLateContributions();
+      res.json({ ok: true });
+    }),
+  );
+  app.get(
+    "/v1/internal/cron/send-reminders",
+    requireCronSecret,
+    h(async (_req, res) => {
+      await sendDueReminders();
+      res.json({ ok: true });
+    }),
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
