@@ -22,18 +22,21 @@ reste identique : seul le client change.
 ```
 tontine-pro/
 ├─ apps/
-│  ├─ api/      API REST (Node.js + TypeScript + Express + Prisma + PostgreSQL)
-│  └─ web/      PWA mobile (HTML/CSS/JS vanille, sans build, routeur par hash)
+│  ├─ api/         API REST (Node.js + TypeScript + Express + Prisma + PostgreSQL)
+│  ├─ web/         PWA mobile (HTML/CSS/JS vanille, sans build, routeur par hash)
+│  └─ backoffice/  Back-office web (Next.js + TypeScript), écrans B01-B08
 └─ README.md
 ```
 
 ### Backend (`apps/api`)
 
 - **Express + TypeScript**, organisé en modules comme le prévoit le TRD : `auth`, `users`,
-  `tontines`, `rounds`, `contributions`, `payments`, `payouts`, `ledger`, `notifications`, `audit`.
+  `tontines`, `rounds`, `contributions`, `payments`, `payouts`, `ledger`, `notifications`, `audit`,
+  `disputes`, `admin` (back-office).
 - **PostgreSQL** via **Prisma** — schéma fidèle au document « Schéma back-end » : `users`,
   `tontines`, `memberships`, `invitations`, `rounds`, `contributions`, `payments`, `payouts`,
-  `webhook_events`, `ledger_entries`, `audit_log`, `notifications`, `otp_codes`.
+  `webhook_events`, `ledger_entries`, `audit_log`, `notifications`, `otp_codes`, `admin_users`,
+  `disputes`, `ledger_corrections`.
 - **Grand livre en écritures seules** : chaque mouvement d'argent écrit une transaction équilibrée
   (Σdébits = Σcrédits) dans `ledger_entries`, jamais modifiée ensuite — vérifié par
   `writeLedgerTransaction`, et par le test de bout en bout (`sum(debit) = sum(credit)` par
@@ -53,9 +56,9 @@ tontine-pro/
   (prévu dans le TRD) ; ici un `setInterval` suffit pour la démo mono-instance.
 
 Non implémenté dans cette passe (clairement hors du MVP d'après la roadmap du PRD, ou secondaire
-pour une démo) : back-office web (B01-B08), tontine à enchères/épargne (V2), micro-crédit (V3),
-génération de PDF pour les reçus (le reçu existe en JSON, affiché dans l'app), envoi WhatsApp réel,
-vraie intégration agrégateur/SMS.
+pour une démo) : tontine à enchères/épargne (V2), micro-crédit (V3), génération de PDF pour les
+reçus (le reçu existe en JSON, affiché dans l'app), envoi WhatsApp réel, vraie intégration
+agrégateur/SMS, 2FA admin (voir section back-office).
 
 ### Frontend (`apps/web`)
 
@@ -71,6 +74,40 @@ PWA mobile-first sans build, avec :
   `notifications.js`, `profile.js`.
 - Installable (`manifest.json` + `sw.js`), montants toujours en FCFA, numéros masqués sauf pour
   leur titulaire (ex. `+225 07 ** ** 45`), aucune donnée financière mise en cache hors-ligne.
+
+### Back-office (`apps/backoffice`)
+
+Application Next.js (App Router, TypeScript) réservée à l'équipe interne, couvrant les écrans B01
+à B08 du document App Flow :
+
+| Écran | Page | Contenu |
+|---|---|---|
+| B01 | `/` | Tableau de bord — indicateurs clés |
+| B02 | `/users` | Utilisateurs — recherche, détail, suspension |
+| B03 | `/tontines` | Tontines — recherche/filtre, détail, membres, tours, solde du grand livre, suspension |
+| B04 | `/payments` | Paiements — liste filtrable (sens, statut) |
+| B05 | `/reconciliation` | Rapprochement — solde par compte du grand livre, `provider_clearing` par jour |
+| B06 | `/disputes` | Litiges — signalements des membres, résolution |
+| B07 | `/failed-tasks` | Tâches en échec — paiements/versements échoués, relance d'un versement |
+| B08 | `/audit-log` | Journal admin — toutes les actions journalisées |
+| — | `/ledger-corrections` | Correction d'une écriture du grand livre (écran bonus, cf. ci-dessous) |
+
+**Authentification** : compte dédié (table `admin_users`), mot de passe hashé, aucun lien avec les
+comptes membres (jetons JWT sur un secret distinct, `JWT_ADMIN_SECRET`). **La 2FA prévue au TRD
+n'est pas implémentée** dans cette passe — à ajouter avant toute mise en production (ex. TOTP via
+une librairie comme `otplib`). Comptes créés hors-ligne par `npm run seed:admin` (voir plus bas),
+jamais via une route d'inscription publique.
+
+**Correction du grand livre à deux administrateurs** : conformément à la matrice de droits du PRD
+(« Corriger une écriture du grand livre — Admin + 2e admin »), un administrateur propose une
+correction (transaction d'origine + lignes corrigées équilibrées) et un **second** administrateur,
+différent du premier, doit l'approuver avant qu'elle ne soit écrite. L'API refuse qu'un même compte
+propose et approuve. Les écritures d'origine ne sont jamais modifiées : l'approbation écrit une
+transaction d'annulation (lignes inversées) puis la transaction corrigée, chacune équilibrée.
+
+**Suspension** : suspendre un utilisateur ou une tontine (B02/B03) a un effet réel, pas seulement
+cosmétique — un compte suspendu perd l'accès à l'API (`requireAuth` vérifie le statut à chaque
+requête), une tontine suspendue bloque l'initiation de nouveaux paiements.
 
 ## Lancer en local
 
@@ -91,11 +128,23 @@ npm run dev             # http://localhost:4000
 # 3) App mobile (autre terminal)
 cd apps/web
 python3 -m http.server 8090   # http://localhost:8090
+
+# 4) Back-office (autre terminal)
+cd apps/api && npm run seed:admin   # crée deux comptes admin de démo (affiche l'email/mot de passe)
+cd ../backoffice
+npm install
+npm run dev              # http://localhost:3001
 ```
 
 Ouvrez `http://localhost:8090` dans un navigateur (idéalement en mode mobile/responsive). Chaque
 nouvel utilisateur se connecte avec un numéro de téléphone ; en dev, le code reçu par SMS est aussi
 affiché à l'écran (bandeau « Mode démo »).
+
+Ouvrez `http://localhost:3001` pour le back-office et connectez-vous avec le compte affiché par
+`npm run seed:admin` (par défaut `admin@tontine.local` / `ChangeMe123!` — à changer via les
+variables `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`). Un second compte (`admin2@tontine.local`,
+même mot de passe) est aussi créé, nécessaire pour tester l'approbation à deux admins des
+corrections du grand livre.
 
 ### Script de test de bout en bout
 
@@ -109,16 +158,18 @@ pour valider visuellement chaque écran.
 | Variable | Rôle |
 |---|---|
 | `DATABASE_URL` | Connexion PostgreSQL |
-| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Signature des jetons (à changer en prod) |
+| `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Signature des jetons membres (à changer en prod) |
+| `JWT_ADMIN_SECRET` | Signature des jetons admin — secret distinct des jetons membres (à changer en prod) |
 | `OTP_DEV_ECHO` | `true` en dev seulement : renvoie le code OTP dans la réponse API |
 | `SIMULATE_PROVIDERS` | Toujours `true` ici (pas d'agrégateur réel connecté) |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` | Identifiants du premier compte admin créé par `npm run seed:admin` |
 
 ## Prochaines étapes suggérées
 
 1. Brancher un vrai agrégateur Mobile Money derrière l'interface `PaymentProvider` existante
    (`src/providers/payments/types.ts`) — le code métier (ledger, tours, notifications) n'a pas à
    changer.
-2. Ajouter le back-office web (Next.js, comme prévu au TRD) pour la modération et les litiges.
+2. Ajouter la 2FA sur les comptes admin du back-office (prévue au TRD, non implémentée ici).
 3. Génération de reçus en PDF + envoi WhatsApp réel pour les invitations/rappels.
 4. Si une app native est requise : construire un client Flutter contre cette même API (contrat
    REST `/v1/...` déjà stable), ou envisager Capacitor pour empaqueter cette PWA existante en

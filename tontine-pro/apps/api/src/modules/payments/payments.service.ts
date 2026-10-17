@@ -25,9 +25,12 @@ export async function initiateContributionPayment(
 ) {
   const contribution = await prisma.contribution.findUniqueOrThrow({
     where: { id: contributionId },
-    include: { membership: true, round: true },
+    include: { membership: { include: { tontine: true } }, round: true },
   });
   if (contribution.membership.userId !== userId) throw Errors.notAMember();
+  if (contribution.membership.tontine.suspendedAt) {
+    throw Errors.forbidden("Cette tontine a été suspendue par l'équipe Tontine, les paiements sont bloqués.");
+  }
   if (contribution.status === "paid") throw Errors.contributionAlreadyPaid();
   if (contribution.round.status !== "open") throw Errors.roundNotOpen();
 

@@ -10,7 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "seed": "tsx prisma/seed.ts",
+    "seed:admin": "tsx prisma/seedAdmin.ts",
     "test": "vitest run"
   },
   "dependencies": {

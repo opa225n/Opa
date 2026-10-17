@@ -33,4 +33,6 @@ export const Errors = {
   contributionAlreadyPaid: () => new ApiError(409, "CONTRIBUTION_ALREADY_PAID", "Cette cotisation est déjà payée."),
   notEnoughMembers: () => new ApiError(409, "NOT_ENOUGH_MEMBERS", "Il faut au moins 3 membres actifs pour lancer le cycle."),
   validation: (details: unknown) => new ApiError(400, "VALIDATION_ERROR", "Données invalides.", details),
+  forbidden: (message = "Action non autorisée.") => new ApiError(403, "FORBIDDEN", message),
+  conflict: (code: string, message: string) => new ApiError(409, code, message),
 };
