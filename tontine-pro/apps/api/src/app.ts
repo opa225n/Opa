@@ -71,11 +71,7 @@ export function createApp() {
       return res.status(err.status).json({ code: err.code, message: err.message, details: err.details });
     }
     console.error(err);
-    res.status(500).json({
-      code: "INTERNAL_ERROR",
-      message: "Erreur interne.",
-      debug: err instanceof Error ? { name: err.name, message: err.message } : String(err),
-    });
+    res.status(500).json({ code: "INTERNAL_ERROR", message: "Erreur interne." });
   });
 
   return app;
