@@ -68,23 +68,43 @@ enum PaymentStatus {
   refunded
 }
 
+enum AdminRole {
+  admin
+  super_admin
+}
+
+enum DisputeStatus {
+  open
+  resolved
+  dismissed
+}
+
+enum LedgerCorrectionStatus {
+  pending
+  approved
+  rejected
+}
+
 model User {
-  id          String   @id @default(uuid())
-  phone       String   @unique
-  fullName    String   @map("full_name")
-  language    String   @default("fr")
-  momoNumber  String?  @map("momo_number")
-  momoOperator String? @map("momo_operator")
-  pinHash     String?  @map("pin_hash")
-  status      String   @default("active")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id              String    @id @default(uuid())
+  phone           String    @unique
+  fullName        String    @map("full_name")
+  language        String    @default("fr")
+  momoNumber      String?   @map("momo_number")
+  momoOperator    String?   @map("momo_operator")
+  pinHash         String?   @map("pin_hash")
+  status          String    @default("active")
+  suspendedAt     DateTime? @map("suspended_at")
+  suspendedReason String?   @map("suspended_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   createdTontines Tontine[]      @relation("TontineCreator")
   memberships     Membership[]
   auditEntries    AuditLog[]
   otpCodes        OtpCode[]
   notifications   Notification[]
+  disputesRaised  Dispute[]      @relation("DisputeRaisedBy")
 
   @@map("users")
 }
@@ -112,23 +132,27 @@ model Tontine {
   contributionAmount BigInt        @map("contribution_amount")
   frequency          String // weekly | biweekly | monthly
   startDate          DateTime      @map("start_date")
-  maxMembers          Int          @map("max_members")
+  maxMembers         Int           @map("max_members")
   gracePeriodHours   Int           @default(24) @map("grace_period_hours")
   penaltyRule        Json          @default("{}") @map("penalty_rule")
   solidarityFeePct   Float         @default(0) @map("solidarity_fee_pct")
   orderMode          String        @default("lottery") @map("order_mode") // lottery | manual | vote
   timezone           String        @default("Africa/Abidjan")
   status             TontineStatus @default(draft)
+  suspendedAt        DateTime?     @map("suspended_at")
+  suspendedReason    String?       @map("suspended_reason")
   createdBy          String        @map("created_by")
   creator            User          @relation("TontineCreator", fields: [createdBy], references: [id])
   createdAt          DateTime      @default(now()) @map("created_at")
   startedAt          DateTime?     @map("started_at")
 
-  memberships  Membership[]
-  rounds       Round[]
-  invitations  Invitation[]
-  auditEntries AuditLog[]
-  ledgerEntries LedgerEntry[]
+  memberships       Membership[]
+  rounds            Round[]
+  invitations       Invitation[]
+  auditEntries      AuditLog[]
+  ledgerEntries     LedgerEntry[]
+  disputes          Dispute[]
+  ledgerCorrections LedgerCorrection[]
 
   @@map("tontines")
 }
@@ -145,7 +169,7 @@ model Membership {
   acceptedRulesAt  DateTime?    @map("accepted_rules_at")
   rotationPosition Int?         @map("rotation_position")
 
-  beneficiaryRounds Round[]         @relation("RoundBeneficiary")
+  beneficiaryRounds Round[]        @relation("RoundBeneficiary")
   contributions     Contribution[]
   payouts           Payout[]
 
@@ -154,30 +178,30 @@ model Membership {
 }
 
 model Invitation {
-  id          String    @id @default(uuid())
-  tontineId   String    @map("tontine_id")
-  tontine     Tontine   @relation(fields: [tontineId], references: [id])
-  token       String    @unique
-  phone       String? // invitation nominative optionnelle
-  createdAt   DateTime  @default(now()) @map("created_at")
-  expiresAt   DateTime  @map("expires_at")
-  usedAt      DateTime? @map("used_at")
+  id        String    @id @default(uuid())
+  tontineId String    @map("tontine_id")
+  tontine   Tontine   @relation(fields: [tontineId], references: [id])
+  token     String    @unique
+  phone     String? // invitation nominative optionnelle
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
 
   @@map("invitations")
 }
 
 model Round {
-  id                       String      @id @default(uuid())
-  tontineId                String      @map("tontine_id")
-  tontine                  Tontine     @relation(fields: [tontineId], references: [id])
-  roundNumber              Int         @map("round_number")
-  beneficiaryMembershipId  String      @map("beneficiary_membership_id")
-  beneficiary              Membership  @relation("RoundBeneficiary", fields: [beneficiaryMembershipId], references: [id])
-  dueDate                  DateTime    @map("due_date")
-  potAmount                BigInt      @map("pot_amount")
-  status                   RoundStatus @default(planned)
-  openedAt                 DateTime?   @map("opened_at")
-  closedAt                 DateTime?   @map("closed_at")
+  id                      String      @id @default(uuid())
+  tontineId               String      @map("tontine_id")
+  tontine                 Tontine     @relation(fields: [tontineId], references: [id])
+  roundNumber             Int         @map("round_number")
+  beneficiaryMembershipId String      @map("beneficiary_membership_id")
+  beneficiary             Membership  @relation("RoundBeneficiary", fields: [beneficiaryMembershipId], references: [id])
+  dueDate                 DateTime    @map("due_date")
+  potAmount               BigInt      @map("pot_amount")
+  status                  RoundStatus @default(planned)
+  openedAt                DateTime?   @map("opened_at")
+  closedAt                DateTime?   @map("closed_at")
 
   contributions Contribution[]
   payout        Payout?
@@ -189,17 +213,17 @@ model Round {
 }
 
 model Contribution {
-  id             String              @id @default(uuid())
-  roundId        String              @map("round_id")
-  round          Round               @relation(fields: [roundId], references: [id])
-  membershipId   String              @map("membership_id")
-  membership     Membership          @relation(fields: [membershipId], references: [id])
-  amountDue      BigInt              @map("amount_due")
-  amountPaid     BigInt              @default(0) @map("amount_paid")
-  penaltyAmount  BigInt              @default(0) @map("penalty_amount")
-  status         ContributionStatus  @default(due)
-  paidAt         DateTime?           @map("paid_at")
-  waivedReason   String?             @map("waived_reason")
+  id            String             @id @default(uuid())
+  roundId       String             @map("round_id")
+  round         Round              @relation(fields: [roundId], references: [id])
+  membershipId  String             @map("membership_id")
+  membership    Membership         @relation(fields: [membershipId], references: [id])
+  amountDue     BigInt             @map("amount_due")
+  amountPaid    BigInt             @default(0) @map("amount_paid")
+  penaltyAmount BigInt             @default(0) @map("penalty_amount")
+  status        ContributionStatus @default(due)
+  paidAt        DateTime?          @map("paid_at")
+  waivedReason  String?            @map("waived_reason")
 
   payments Payment[]
 
@@ -209,21 +233,21 @@ model Contribution {
 }
 
 model Payment {
-  id              String           @id @default(uuid())
-  direction       PaymentDirection
-  contributionId  String?          @map("contribution_id")
-  contribution    Contribution?    @relation(fields: [contributionId], references: [id])
-  provider        String           @default("simulated")
-  providerRef     String?          @map("provider_ref")
-  idempotencyKey  String           @unique @map("idempotency_key")
-  operator        String?
-  amount          BigInt
-  fee             BigInt           @default(0)
-  status          PaymentStatus    @default(initiated)
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
+  id             String           @id @default(uuid())
+  direction      PaymentDirection
+  contributionId String?          @map("contribution_id")
+  contribution   Contribution?    @relation(fields: [contributionId], references: [id])
+  provider       String           @default("simulated")
+  providerRef    String?          @map("provider_ref")
+  idempotencyKey String           @unique @map("idempotency_key")
+  operator       String?
+  amount         BigInt
+  fee            BigInt           @default(0)
+  status         PaymentStatus    @default(initiated)
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
 
-  payout Payout?
+  payout        Payout?
   ledgerEntries LedgerEntry[]
 
   @@unique([provider, providerRef])
@@ -231,16 +255,16 @@ model Payment {
 }
 
 model Payout {
-  id                       String     @id @default(uuid())
-  roundId                  String     @unique @map("round_id")
-  round                    Round      @relation(fields: [roundId], references: [id])
-  beneficiaryMembershipId  String     @map("beneficiary_membership_id")
-  beneficiary              Membership @relation(fields: [beneficiaryMembershipId], references: [id])
-  paymentId                String?    @unique @map("payment_id")
-  payment                  Payment?   @relation(fields: [paymentId], references: [id])
-  amount                   BigInt
-  attempts                 Int        @default(0)
-  status                   String     @default("pending") // pending|sent|confirmed|failed
+  id                      String     @id @default(uuid())
+  roundId                 String     @unique @map("round_id")
+  round                   Round      @relation(fields: [roundId], references: [id])
+  beneficiaryMembershipId String     @map("beneficiary_membership_id")
+  beneficiary             Membership @relation(fields: [beneficiaryMembershipId], references: [id])
+  paymentId               String?    @unique @map("payment_id")
+  payment                 Payment?   @relation(fields: [paymentId], references: [id])
+  amount                  BigInt
+  attempts                Int        @default(0)
+  status                  String     @default("pending") // pending|sent|confirmed|failed
 
   @@map("payouts")
 }
@@ -303,4 +327,64 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+/// Compte back-office (équipe interne). Distinct des comptes membres : auth par mot de passe,
+/// jamais par OTP. 2FA prévue au TRD, non implémentée dans cette passe (voir README).
+model AdminUser {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  fullName     String    @map("full_name")
+  role         AdminRole @default(admin)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  disputesResolved    Dispute[]          @relation("DisputeResolvedBy")
+  correctionsProposed LedgerCorrection[] @relation("CorrectionProposedBy")
+  correctionsApproved LedgerCorrection[] @relation("CorrectionApprovedBy")
+
+  @@map("admin_users")
+}
+
+/// Signalement d'un membre (écran E42) traité au back-office (écran B06).
+model Dispute {
+  id                String        @id @default(uuid())
+  tontineId         String        @map("tontine_id")
+  tontine           Tontine       @relation(fields: [tontineId], references: [id])
+  raisedByUserId    String        @map("raised_by_user_id")
+  raisedBy          User          @relation("DisputeRaisedBy", fields: [raisedByUserId], references: [id])
+  contributionId    String?       @map("contribution_id")
+  reason            String
+  status            DisputeStatus @default(open)
+  resolution        String?
+  resolvedByAdminId String?       @map("resolved_by_admin_id")
+  resolvedBy        AdminUser?    @relation("DisputeResolvedBy", fields: [resolvedByAdminId], references: [id])
+  createdAt         DateTime      @default(now()) @map("created_at")
+  resolvedAt        DateTime?     @map("resolved_at")
+
+  @@index([status])
+  @@map("disputes")
+}
+
+/// Correction d'une écriture du grand livre — ne modifie jamais ledger_entries en place :
+/// une fois approuvée par un SECOND admin, écrit une écriture inverse + une écriture corrigée
+/// (cf. TRD : "Corriger une écriture du grand livre" nécessite l'admin + un 2e admin).
+model LedgerCorrection {
+  id                String                 @id @default(uuid())
+  tontineId         String                 @map("tontine_id")
+  tontine           Tontine                @relation(fields: [tontineId], references: [id])
+  originalTxId      String                 @map("original_tx_id")
+  reason            String
+  /// Lignes de l'écriture corrective à écrire une fois approuvée : [{account, debit, credit, reason}],
+  /// doit être équilibrée (Σdébits = Σcrédits) comme toute transaction du grand livre.
+  correctedLines    Json                   @map("corrected_lines")
+  status            LedgerCorrectionStatus @default(pending)
+  proposedByAdminId String                 @map("proposed_by_admin_id")
+  proposedBy        AdminUser              @relation("CorrectionProposedBy", fields: [proposedByAdminId], references: [id])
+  approvedByAdminId String?                @map("approved_by_admin_id")
+  approvedBy        AdminUser?             @relation("CorrectionApprovedBy", fields: [approvedByAdminId], references: [id])
+  createdAt         DateTime               @default(now()) @map("created_at")
+  resolvedAt        DateTime?              @map("resolved_at")
+
+  @@map("ledger_corrections")
 }

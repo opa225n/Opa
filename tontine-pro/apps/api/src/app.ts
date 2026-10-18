@@ -10,6 +10,15 @@ import { payoutRouter } from "./modules/rounds/payout.routes";
 import { historyRouter } from "./modules/tontines/history.routes";
 import { contributionsRouter, paymentsRouter } from "./modules/contributions/contributions.routes";
 import { notificationsRouter } from "./modules/notifications/notifications.routes";
+import { disputesRouter } from "./modules/disputes/disputes.routes";
+import { adminAuthRouter } from "./modules/admin/admin.auth.routes";
+import { adminDashboardRouter } from "./modules/admin/admin.dashboard.routes";
+import { adminUsersRouter } from "./modules/admin/admin.users.routes";
+import { adminTontinesRouter } from "./modules/admin/admin.tontines.routes";
+import { adminPaymentsRouter } from "./modules/admin/admin.payments.routes";
+import { adminDisputesRouter } from "./modules/admin/admin.disputes.routes";
+import { adminLedgerCorrectionsRouter } from "./modules/admin/admin.ledgerCorrections.routes";
+import { adminAuditRouter } from "./modules/admin/admin.audit.routes";
 import { wireSimulatedWebhooks } from "./modules/payments/payments.service";
 import { markLateContributions, sendDueReminders } from "./jobs/scheduler";
 import { h } from "./common/asyncHandler";
@@ -44,6 +53,16 @@ export function createApp() {
   app.use("/v1/contributions", contributionsRouter);
   app.use("/v1/payments", paymentsRouter);
   app.use("/v1/notifications", notificationsRouter);
+  app.use("/v1/tontines/:id/disputes", disputesRouter);
+
+  app.use("/v1/admin/auth", adminAuthRouter);
+  app.use("/v1/admin/dashboard", adminDashboardRouter);
+  app.use("/v1/admin/users", adminUsersRouter);
+  app.use("/v1/admin/tontines", adminTontinesRouter);
+  app.use("/v1/admin/payments", adminPaymentsRouter);
+  app.use("/v1/admin/disputes", adminDisputesRouter);
+  app.use("/v1/admin/ledger-corrections", adminLedgerCorrectionsRouter);
+  app.use("/v1/admin/audit-log", adminAuditRouter);
 
   // Déclenchées par Vercel Cron en production (cf. vercel.json) à la place du setInterval
   // en mémoire utilisé par startScheduler() en développement local (incompatible avec le
@@ -76,3 +95,7 @@ export function createApp() {
 
   return app;
 }
+
+// Si la détection de framework de Vercel invoque ce fichier directement (plutôt que api/index.ts),
+// l'export par défaut doit aussi être un handler valide pour éviter un crash "Invalid export found".
+export default createApp();

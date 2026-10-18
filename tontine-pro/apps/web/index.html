@@ -23,7 +23,7 @@
   // En local, src/api.js retombe sur `${hostname}:4000` ; en production (déployée séparément
   // de l'API), on pointe explicitement vers l'URL de l'API déployée.
   if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-    window.TONTINE_API_BASE = "https://REPLACE_WITH_API_URL.vercel.app/v1";
+    window.TONTINE_API_BASE = "https://opa-tontine-api.vercel.app/v1";
   }
 </script>
 <script type="module" src="src/main.js"></script>
