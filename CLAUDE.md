@@ -6,16 +6,16 @@
 **Branch:** claude/tontine-pro-backoffice
 
 **Recent commits:**
-- 482e918 Merge branch 'claude/tontine-pro-app' into claude/tontine-pro-backoffice
-- 0618319 Don't fail the test script when there are no test files
-- 8766c5b Merge branch 'claude/tontine-pro-app' into claude/tontine-pro-backoffice
-- 5faa858 Switch cron jobs to daily schedules for Vercel Hobby plan
-- 4bf56a1 Merge branch 'claude/tontine-pro-app' into claude/tontine-pro-backoffice
+- a753805 Remove temporary debug error detail now that the DB connection is fixed
+- 14b1bce Surface the API's debug error detail on the login screen temporarily
+- 46c8f51 Temporarily surface the real error message on 500s for live debugging
+- 2ed59bc Merge branch 'claude/tontine-pro-app' into claude/tontine-pro-backoffice
+- 7302b40 Add Lambda-compatible Prisma binary targets for Vercel deployment
 
 **Project reminders:**
 - Verify the file content before claiming an edit is done
 - Run tests before declaring task complete
 - Re-read CLAUDE.md if you're unsure of project conventions
 
-**Hook generated:** 2026-10-17 23:52:41 UTC
+**Hook generated:** 2026-10-18 19:19:49 UTC
 <!-- post-compact-recovery-end -->
