@@ -35,10 +35,12 @@ export function clearAdminSession() {
 export class AdminApiError extends Error {
   code: string;
   status: number;
-  constructor(status: number, code: string, message: string) {
+  debug?: unknown;
+  constructor(status: number, code: string, message: string, debug?: unknown) {
     super(message);
     this.status = status;
     this.code = code;
+    this.debug = debug;
   }
 }
 
@@ -58,7 +60,7 @@ async function request(path: string, opts: { method?: string; body?: unknown } =
       clearAdminSession();
       window.location.href = "/login";
     }
-    throw new AdminApiError(res.status, data?.code || "UNKNOWN", data?.message || "Erreur réseau.");
+    throw new AdminApiError(res.status, data?.code || "UNKNOWN", data?.message || "Erreur réseau.", data?.debug);
   }
   return data;
 }
