@@ -19,11 +19,7 @@ export default function LoginPage() {
       setAdminSession(res.accessToken, res.admin);
       router.push("/");
     } catch (err) {
-      if (err instanceof AdminApiError) {
-        setError(err.debug ? `${err.message} — ${JSON.stringify(err.debug)}` : err.message);
-      } else {
-        setError("Connexion impossible.");
-      }
+      setError(err instanceof AdminApiError ? err.message : "Connexion impossible.");
     } finally {
       setLoading(false);
     }
