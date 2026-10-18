@@ -95,3 +95,7 @@ export function createApp() {
 
   return app;
 }
+
+// Si la détection de framework de Vercel invoque ce fichier directement (plutôt que api/index.ts),
+// l'export par défaut doit aussi être un handler valide pour éviter un crash "Invalid export found".
+export default createApp();
