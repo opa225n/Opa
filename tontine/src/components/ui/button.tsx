@@ -3,16 +3,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2",
   {
     variants: {
       variant: {
-        default: "bg-emerald-800 text-white hover:bg-emerald-900",
+        default: "bg-[var(--brand)] text-white hover:bg-[#052e26]",
         destructive: "bg-red-600 text-white hover:bg-red-700",
-        outline: "border border-stone-300 bg-white text-stone-900 hover:bg-stone-50",
+        outline: "border border-[var(--brand)]/25 bg-white text-[var(--brand)] hover:bg-[var(--brand)]/5",
         ghost: "hover:bg-stone-100 text-stone-900",
-        link: "text-emerald-800 underline-offset-4 hover:underline",
-        secondary: "bg-orange-500 text-white hover:bg-orange-600",
+        link: "text-[var(--brand)] underline-offset-4 hover:underline",
+        secondary: "border border-[var(--brand-gold)] bg-[var(--brand-gold)]/10 text-[var(--brand)] hover:bg-[var(--brand-gold)]/20",
       },
       size: {
         default: "h-11 px-4 py-2",

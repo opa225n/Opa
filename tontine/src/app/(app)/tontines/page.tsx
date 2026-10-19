@@ -24,7 +24,7 @@ export default async function TontinesPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">Mes tontines</h1>
+          <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">Mes tontines</h1>
           <p className="text-sm text-stone-500">Toutes les tontines dont vous êtes membre.</p>
         </div>
         <Link href="/tontines/nouveau">

@@ -28,7 +28,7 @@ export default async function JoinPage({ params }: { params: Promise<{ code: str
   if (!session?.user) {
     return (
       <div className="mx-auto flex max-w-md flex-col gap-4 py-16 text-center">
-        <h1 className="text-xl font-bold text-stone-900">Rejoindre {invitation.tontine.name}</h1>
+        <h1 className="font-display text-xl font-semibold text-[var(--foreground)]">Rejoindre {invitation.tontine.name}</h1>
         <p className="text-stone-600">
           {invitation.invitedBy.fullName} vous invite à rejoindre cette tontine sur Tontine CI.
           Connectez-vous ou créez un compte pour continuer.

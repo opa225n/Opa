@@ -34,7 +34,7 @@ export default function HomePage() {
       </header>
 
       <section className="mx-auto max-w-4xl px-4 py-16 text-center">
-        <h1 className="text-4xl font-bold tracking-tight text-stone-900 sm:text-5xl">
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-[var(--foreground)] sm:text-5xl">
           Gérez vos tontines en toute confiance
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-stone-600">
@@ -54,7 +54,7 @@ export default function HomePage() {
       </section>
 
       <section className="mx-auto max-w-5xl px-4 py-12">
-        <h2 className="text-center text-2xl font-semibold text-stone-900">
+        <h2 className="font-display text-center text-2xl font-semibold text-[var(--foreground)]">
           Les problèmes que Tontine CI résout
         </h2>
         <ul className="mx-auto mt-6 grid max-w-3xl gap-3 sm:grid-cols-2">
@@ -68,7 +68,7 @@ export default function HomePage() {
       </section>
 
       <section className="mx-auto max-w-5xl px-4 py-12">
-        <h2 className="text-center text-2xl font-semibold text-stone-900">Types de tontines prises en charge</h2>
+        <h2 className="font-display text-center text-2xl font-semibold text-[var(--foreground)]">Types de tontines prises en charge</h2>
         <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {TYPES.map((t) => (
             <Card key={t.title}>

@@ -15,7 +15,7 @@ export default async function NotificationsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-stone-900">Notifications</h1>
+        <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">Notifications</h1>
         <form action={markAllNotificationsReadAction}>
           <Button type="submit" variant="outline" size="sm">
             Tout marquer comme lu

@@ -53,32 +53,32 @@ export default async function AdminOverviewPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-stone-900">Administration — vue d&apos;ensemble</h1>
+        <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">Administration — vue d&apos;ensemble</h1>
         <p className="text-sm text-stone-500">
           Vue en lecture seule sur toute la plateforme, tous responsables et tontines confondus.
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Utilisateurs</CardDescription>
             <CardTitle className="text-3xl">{userCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Tontines</CardDescription>
             <CardTitle className="text-3xl">{tontineCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Tontines actives</CardDescription>
             <CardTitle className="text-3xl">{activeTontineCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Total confirmé (toutes tontines)</CardDescription>
             <CardTitle className="text-2xl">{formatXof(confirmedAgg._sum.amountConfirmedXof ?? 0)}</CardTitle>

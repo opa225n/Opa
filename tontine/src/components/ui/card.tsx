@@ -1,10 +1,18 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+function Card({
+  className,
+  accent,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { accent?: boolean }) {
   return (
     <div
-      className={cn("rounded-xl border border-stone-200 bg-white shadow-sm", className)}
+      className={cn(
+        "rounded-xl border border-[var(--brand)]/12 bg-white shadow-[0_1px_3px_rgba(6,61,50,0.08)]",
+        accent && "border-t-[3px] border-t-[var(--brand-gold)]",
+        className
+      )}
       {...props}
     />
   );
@@ -15,7 +23,9 @@ function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement
 }
 
 function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h3 className={cn("text-base font-semibold text-stone-900", className)} {...props} />;
+  return (
+    <h3 className={cn("font-display text-base font-semibold text-[var(--foreground)]", className)} {...props} />
+  );
 }
 
 function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {

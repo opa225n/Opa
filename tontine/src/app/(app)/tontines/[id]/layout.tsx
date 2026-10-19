@@ -27,7 +27,7 @@ export default async function TontineLayout({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-bold text-stone-900">{tontine.name}</h1>
+          <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">{tontine.name}</h1>
           {tontine.description && <p className="text-sm text-stone-500">{tontine.description}</p>}
         </div>
         <div className="flex gap-2">

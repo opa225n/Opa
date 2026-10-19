@@ -64,30 +64,30 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-stone-900">Tableau de bord</h1>
+        <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">Tableau de bord</h1>
         <p className="text-sm text-stone-500">Vue d&apos;ensemble de toutes vos tontines.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Tontines actives</CardDescription>
             <CardTitle className="text-3xl">{activeTontineCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Membres (toutes tontines)</CardDescription>
             <CardTitle className="text-3xl">{memberTotal}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Cotisations en retard</CardDescription>
             <CardTitle className="text-3xl text-red-600">{lateCount}</CardTitle>
           </CardHeader>
         </Card>
-        <Card>
+        <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Notifications non lues</CardDescription>
             <CardTitle className="text-3xl">{unreadNotifications}</CardTitle>
