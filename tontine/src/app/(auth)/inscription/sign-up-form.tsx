@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -114,8 +115,19 @@ export function SignUpForm() {
       <label className="flex items-start gap-2 text-sm text-stone-600">
         <input type="checkbox" className="mt-1" {...register("acceptTerms")} />
         <span>
-          J&apos;accepte les conditions d&apos;utilisation et la politique de confidentialité de
-          Tontine CI.
+          J&apos;accepte les{" "}
+          <Link href="/cgu" target="_blank" className="text-brand underline-offset-4 hover:underline">
+            conditions d&apos;utilisation
+          </Link>{" "}
+          et la{" "}
+          <Link
+            href="/confidentialite"
+            target="_blank"
+            className="text-brand underline-offset-4 hover:underline"
+          >
+            politique de confidentialité
+          </Link>{" "}
+          de Tontine CI.
         </span>
       </label>
       {errors.acceptTerms && <p className="text-sm text-red-600">{errors.acceptTerms.message}</p>}

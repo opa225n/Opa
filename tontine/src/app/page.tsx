@@ -82,7 +82,16 @@ export default function HomePage() {
       </section>
 
       <footer className="border-t border-stone-200 py-8 text-center text-sm text-stone-500">
-        Tontine CI — outil de gestion et de traçabilité. Ne détient ni ne transfère vos fonds.
+        <p>Tontine CI — outil de gestion et de traçabilité. Ne détient ni ne transfère vos fonds.</p>
+        <p className="mt-2 flex items-center justify-center gap-3">
+          <Link href="/cgu" className="hover:text-brand hover:underline">
+            Conditions d&apos;utilisation
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/confidentialite" className="hover:text-brand hover:underline">
+            Politique de confidentialité
+          </Link>
+        </p>
       </footer>
     </div>
   );
