@@ -49,8 +49,15 @@ export async function requestPasswordResetAction(
     return { ok: true, message: GENERIC_MESSAGE, demoResetUrl: resetUrl };
   }
 
-  await sendPasswordResetEmail({ to: created.email, resetUrl });
-  return { ok: true, message: GENERIC_MESSAGE };
+  try {
+    await sendPasswordResetEmail({ to: created.email, resetUrl });
+    return { ok: true, message: GENERIC_MESSAGE };
+  } catch (error) {
+    // Le domaine d'envoi peut ne pas encore être vérifié côté fournisseur (propagation DNS en
+    // cours) : on retombe sur le mode démo plutôt que de laisser l'utilisateur bloqué.
+    console.error("[password-reset] Échec de l'envoi réel, repli en mode démo.", error);
+    return { ok: true, message: GENERIC_MESSAGE, demoResetUrl: resetUrl };
+  }
 }
 
 export type ResetPasswordResult = { ok: true } | { ok: false; error: string };
