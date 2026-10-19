@@ -72,7 +72,7 @@ export default async function ContributionsPage({
         {contributions.map((c) => {
           const remaining = Math.max(c.amountExpectedXof - c.amountConfirmedXof, 0);
           return (
-            <Card key={c.id}>
+            <Card key={c.id} data-testid={`contribution-card-${c.membershipId}`}>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle>{c.membership.user.fullName}</CardTitle>
                 <div className="flex items-center gap-2">
@@ -105,6 +105,7 @@ export default async function ContributionsPage({
                     paidAt: p.paidAt.toISOString(),
                     transactionRef: p.transactionRef,
                     isManualEntry: p.isManualEntry,
+                    notes: p.notes,
                   }))}
                   canSelfDeclare={c.membershipId === membership.id}
                   canManage={canManage}

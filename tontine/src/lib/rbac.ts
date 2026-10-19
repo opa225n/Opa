@@ -1,7 +1,9 @@
 import "server-only";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import type { TontineMemberRole, MembershipStatus, Prisma } from "@prisma/client";
+import type { TontineMemberRole, MembershipStatus } from "@prisma/client";
+
+export { writeAuditLog } from "@/lib/audit-log";
 
 export class UnauthenticatedError extends Error {
   constructor() {
@@ -57,24 +59,4 @@ export async function requirePlatformAdmin() {
     throw new ForbiddenError("Accès refusé : réservé aux administrateurs de la plateforme.");
   }
   return user;
-}
-
-export async function writeAuditLog(params: {
-  tontineId?: string;
-  userId?: string;
-  action: string;
-  entityType: string;
-  entityId: string;
-  metadata?: Record<string, unknown>;
-}) {
-  await prisma.auditLog.create({
-    data: {
-      tontineId: params.tontineId,
-      userId: params.userId,
-      action: params.action,
-      entityType: params.entityType,
-      entityId: params.entityId,
-      metadata: params.metadata as Prisma.InputJsonValue | undefined,
-    },
-  });
 }

@@ -164,6 +164,13 @@ développement (voir `tests/setup.ts`) — utilisez une base dédiée en CI.
   invitation, paiement, rejet, versement, retrait de membre...).
 - Jeu de données de démonstration clairement identifié, compte de démo documenté et
   réinitialisable.
+- **Mobile Money (mode démonstration)** : interface commune aux 4 prestataires (Orange Money,
+  MTN MoMo, Moov Money, Wave), initiation d'un paiement, traitement idempotent des
+  confirmations/échecs/remboursements via un point d'entrée webhook partagé
+  (`src/lib/payments/webhook-processor.ts`), et — en l'absence de clés API réelles — bascule
+  automatique en mode démonstration clairement étiqueté dans l'interface (badge "DÉMO",
+  boutons "[DÉMO] Simuler succès/échec"), sans jamais transférer d'argent réel. Voir
+  [Intégrations externes](#intégrations-externes).
 
 ## Fonctionnalités restant à configurer
 
@@ -176,10 +183,13 @@ développement d'interface ou une intégration externe avant mise en production 
 - **Module caisse et prêts internes** (`Loan`, `LoanRepayment`, `CashTransaction`) : modèle de
   données prêt, pas encore d'interface. Les intérêts (`interestRateBp`) restent à 0 par défaut
   et ne doivent être activés qu'après validation des obligations légales applicables.
-- **Intégrations Mobile Money réelles** (Orange Money, MTN MoMo, Moov Money, Wave) : le modèle
-  (`PaymentProvider`, `PaymentWebhookEvent` avec idempotence testée) est prêt, mais aucune
-  intégration réelle n'est câblée — voir [Intégrations externes](#intégrations-externes).
-  **Aucune clé d'API n'a été inventée ni codée en dur.**
+- **Intégrations Mobile Money réelles** (Orange Money, MTN MoMo, Moov Money, Wave) : le mode
+  démonstration fonctionne de bout en bout (voir ci-dessus), mais aucun des 4 adaptateurs
+  (`src/lib/payments/providers/`) n'appelle réellement l'API d'un prestataire — chacun lève une
+  erreur explicite tant que ses identifiants ne sont pas configurés, puis tant que l'appel réel
+  n'est pas implémenté. **Aucune clé d'API, numéro marchand ou réponse de prestataire n'a été
+  inventée.** Voir [Intégrations externes](#intégrations-externes) pour les étapes d'activation
+  exactes.
 - **SMS, e-mail transactionnel, WhatsApp Business** : aucun fournisseur n'est connecté. Les
   notifications dans l'application fonctionnent déjà ; l'envoi externe nécessite la
   configuration d'un prestataire (voir ci-dessous) et n'est jamais simulé comme réussi.
@@ -249,15 +259,49 @@ Mobile Money a été effectué.
 
 ### Mobile Money (Orange Money, MTN MoMo, Moov Money, Wave)
 
-Le modèle (`PaymentProvider`, `PaymentWebhookEvent`) est prêt pour une interface commune à
-plusieurs prestataires. Pour activer une intégration réelle :
+**Ce qui fonctionne déjà, sans aucune configuration** : sur la page Cotisations, tout membre
+peut cliquer "Payer via Mobile Money", choisir un prestataire et un montant. Comme aucun
+prestataire n'est configuré, l'application bascule automatiquement en **mode démonstration**
+(`src/lib/payments/service.ts`) : une référence de transaction locale est générée, le paiement
+est créé au statut `DECLARED`, et l'interface affiche un badge "DÉMO" avec deux boutons
+"[DÉMO] Simuler succès" / "[DÉMO] Simuler échec". Cliquer sur ces boutons appelle
+`simulateMobileMoneyCallbackAction`, qui passe par **exactement la même fonction** de
+traitement qu'un vrai webhook (`processProviderWebhook`) : idempotence, recalcul de la
+cotisation, notification, journal d'audit. Rien n'est "confirmé en douce" : même en démo, le
+paiement reste `DECLARED` jusqu'au clic explicite simulant la réponse du prestataire. Aucun
+argent ne change de main à aucun moment de ce flux.
 
-1. Obtenir les identifiants API auprès du prestataire (compte marchand agréé).
-2. Renseigner les variables correspondantes dans `.env` (voir `.env.example`).
-3. Implémenter le client d'API du prestataire et le point d'entrée webhook
-   (`/api/webhooks/<prestataire>`), en vérifiant la signature de chaque requête entrante
-   avant tout traitement, et en s'appuyant sur `PaymentWebhookEvent` pour l'idempotence.
-4. Ne jamais marquer un paiement `CONFIRMED` sans confirmation vérifiable du prestataire.
+**Architecture** (`src/lib/payments/`) :
+
+- `types.ts` : interface commune `MobileMoneyAdapter` (une implémentation par prestataire).
+- `providers/{orange-money,mtn-momo,moov-money,wave}.ts` : un adaptateur par prestataire.
+  Chacun vérifie ses variables d'environnement requises et refuse de s'exécuter si elles
+  manquent (`ProviderNotConfiguredError`) ; l'appel API réel est un `TODO` explicite, car la
+  documentation officielle de chaque prestataire n'a pas été consultée pour ce projet.
+- `service.ts` (`initiateMobileMoneyPayment`) : point d'entrée unique. Appelle l'adaptateur réel
+  si le prestataire est configuré, sinon bascule en démonstration.
+- `webhook-processor.ts` (`processProviderWebhook`) : traitement idempotent partagé entre les
+  vrais webhooks et la simulation démo (idempotence testée dans
+  `tests/integration/mobile-money-webhook.test.ts` : succès, échec, doublon, signature
+  invalide, remboursement, paiement déjà finalisé).
+- `verify-signature.ts` : vérification HMAC-SHA256 **générique**, fail-safe (signature
+  considérée invalide si `PAYMENT_WEBHOOK_SIGNING_SECRET` est absent). **À remplacer par le
+  schéma de signature réel de chaque prestataire avant mise en production.**
+- Route webhook générique : `src/app/api/webhooks/mobile-money/[provider]/route.ts`.
+
+**Pour activer une intégration réelle avec un prestataire** :
+
+1. Obtenir un compte marchand et des identifiants API auprès du prestataire (voir les
+   commentaires en tête de chaque fichier dans `src/lib/payments/providers/` pour le détail
+   exact par prestataire).
+2. Renseigner les variables correspondantes dans `.env` (voir `.env.example` — ex:
+   `ORANGE_MONEY_API_KEY`, `ORANGE_MONEY_MERCHANT_ID`).
+3. Implémenter l'appel réel dans `initiatePayment()` de l'adaptateur correspondant, en suivant
+   la documentation officielle du prestataire (jamais reproduite ici).
+4. Remplacer la vérification de signature générique par le schéma réel du prestataire dans la
+   route webhook, avant tout traitement.
+5. Ne jamais marquer un paiement `CONFIRMED` sans confirmation vérifiable du prestataire —
+   c'est déjà garanti par `processProviderWebhook`, à condition de ne pas contourner ce chemin.
 
 ### SMS / e-mail / WhatsApp
 
