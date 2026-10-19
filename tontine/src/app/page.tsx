@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { TontineLogo } from "@/components/brand/logo";
 
 const PROBLEMS = [
   "Suivi des cotisations de chaque membre, tour par tour",
@@ -21,7 +22,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
-        <span className="text-xl font-bold text-brand">Tontine CI</span>
+        <TontineLogo size="md" />
         <div className="flex items-center gap-3">
           <Link href="/connexion">
             <Button variant="ghost">Connexion</Button>

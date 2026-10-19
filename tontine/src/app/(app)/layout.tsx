@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { TontineLogo } from "@/components/brand/logo";
 
 const NAV = [
   { href: "/dashboard", label: "Tableau de bord" },
@@ -24,8 +25,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen bg-[var(--background)]">
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/dashboard" className="text-lg font-bold text-brand">
-            Tontine CI
+          <Link href="/dashboard" className="shrink-0">
+            <TontineLogo size="md" className="hidden sm:inline-flex" />
+            <TontineLogo size="md" variant="compact" className="sm:hidden" />
           </Link>
           <nav className="hidden items-center gap-5 text-sm font-medium text-stone-600 sm:flex">
             {nav.map((item) => (
