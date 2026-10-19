@@ -1,11 +1,10 @@
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
-// Symbole Tontine CI : un cercle (union, communauté) contenant quatre segments
-// en pinwheel de longueur croissante (le principe même de la tontine — un
-// tour qui circule entre les membres — et la progression vers la prospérité
-// collective). Le segment le plus long, en or champagne, est l'accent : le
-// tour qui aboutit. Reste lisible en silhouette monochrome (currentColor).
+// Symbole Tontine CI — "Le Nœud de Confiance" : deux arcs ouverts, de teintes
+// différentes, entrelacés en une boucle continue sans début ni fin. Deux
+// parties liées par un engagement mutuel ininterrompu — le principe même
+// d'une tontine. Reste lisible en silhouette monochrome (currentColor).
 // ---------------------------------------------------------------------------
 
 type MarkProps = {
@@ -16,9 +15,7 @@ type MarkProps = {
 };
 
 export function TontineMark({ size = 32, className, monochrome = false }: MarkProps) {
-  const fill = monochrome
-    ? { ring: "currentColor", peak: "currentColor", b: "currentColor", c: "currentColor", d: "currentColor" }
-    : { ring: "var(--brand)", peak: "var(--brand-gold)", b: "var(--brand-emerald)", c: "var(--brand)", d: "var(--brand)" };
+  const fill = monochrome ? { a: "currentColor", b: "currentColor" } : { a: "var(--brand)", b: "var(--brand-gold)" };
 
   return (
     <svg
@@ -31,11 +28,18 @@ export function TontineMark({ size = 32, className, monochrome = false }: MarkPr
       role="img"
       aria-label="Tontine CI"
     >
-      <circle cx="50" cy="50" r="45" stroke={fill.ring} strokeWidth="5" opacity={monochrome ? 1 : 0.9} />
-      <rect x="42.5" y="10" width="15" height="24" rx="7.5" fill={fill.peak} />
-      <rect x="42.5" y="14" width="15" height="20" rx="7.5" fill={fill.b} transform="rotate(90 50 50)" />
-      <rect x="42.5" y="18" width="15" height="16" rx="7.5" fill={fill.c} transform="rotate(180 50 50)" />
-      <rect x="42.5" y="22" width="15" height="12" rx="7.5" fill={fill.d} transform="rotate(270 50 50)" />
+      <path
+        d="M 55.56 65.56 A 22 22 0 1 1 55.56 34.44"
+        stroke={fill.a}
+        strokeWidth="9"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 44.44 34.44 A 22 22 0 1 1 44.44 65.56"
+        stroke={fill.b}
+        strokeWidth="9"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

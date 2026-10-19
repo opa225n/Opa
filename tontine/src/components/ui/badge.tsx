@@ -7,7 +7,10 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-[var(--brand-emerald)]/12 text-[var(--brand-emerald)]",
+        // Vert sémantique (succès/actif) volontairement distinct de la marque : un badge de
+        // statut doit rester lisible comme "positif" au premier coup d'œil, indépendamment
+        // de la palette de marque (prune/or).
+        default: "bg-emerald-50 text-emerald-700",
         secondary: "bg-[var(--brand-gold)]/15 text-[var(--brand)]",
         outline: "border border-[var(--brand)]/25 text-[var(--brand)]",
         destructive: "bg-red-100 text-red-800",
