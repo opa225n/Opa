@@ -22,6 +22,14 @@ export const metadata: Metadata = {
   title: "Tontine CI — Gestion de tontines",
   description:
     "Cotisations, calendrier des tours, paiements et rapports pour vos tontines, en franc CFA.",
+  icons: {
+    // Paramètre de version pour casser le cache favicon des navigateurs (très agressif) après
+    // un changement d'icône : incrémenter à chaque nouvelle mise à jour du logo.
+    icon: [
+      { url: "/icon.svg?v=2", type: "image/svg+xml" },
+      { url: "/favicon.ico?v=2", sizes: "any" },
+    ],
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
