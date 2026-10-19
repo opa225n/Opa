@@ -71,6 +71,7 @@ model User {
   auditLogs               AuditLog[]
   attachmentsUploaded     Attachment[]
   notificationPreferences NotificationPreference[]
+  passwordResetTokens     PasswordResetToken[]
 
   @@index([countryCode])
 }
@@ -96,6 +97,21 @@ model NotificationPreference {
   enabled Boolean             @default(true)
 
   @@unique([userId, type, channel])
+}
+
+// Jeton de réinitialisation de mot de passe (lien envoyé par email). On ne stocke jamais le
+// jeton en clair : seul son hash SHA-256 est en base, le jeton brut n'existant que dans l'URL
+// envoyée à l'utilisateur. À usage unique (usedAt) et de courte durée de vie (expiresAt).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------

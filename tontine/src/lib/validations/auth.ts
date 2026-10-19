@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // Numéro international simplifié (E.164) : + suivi de 8 à 15 chiffres.
-const phoneSchema = z
+export const phoneSchema = z
   .string()
   .trim()
   .regex(/^\+[1-9]\d{7,14}$/, "Numéro invalide. Utilisez le format international, ex: +2250700000000.");
@@ -28,3 +28,19 @@ export const signInSchema = z.object({
 });
 
 export type SignInInput = z.infer<typeof signInSchema>;
+
+export const requestPasswordResetSchema = z.object({
+  phone: phoneSchema,
+});
+
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().trim().min(1, "Lien de réinitialisation invalide."),
+  password: z
+    .string()
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
+    .max(72, "Mot de passe trop long."),
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
