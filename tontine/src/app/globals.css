@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+/* Tontine CI — identité visuelle : vert profond (confiance), blanc cassé (sobriété),
+   touches d'orange (convivialité). */
+:root {
+  --background: #faf8f4; /* blanc cassé */
+  --foreground: #1c2b22; /* vert très sombre, quasi texte */
+  --brand: #0f3d2e; /* vert profond */
+  --brand-foreground: #ffffff;
+  --accent: #e8792b; /* orange */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}

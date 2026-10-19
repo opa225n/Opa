@@ -1,0 +1,658 @@
+// Tontine CI — schéma de données
+//
+// Règles importantes :
+// - Tous les montants sont stockés en entiers (unités de FCFA/XOF, pas de centimes, pas de flottants).
+// - "attendu" (Contribution.amountExpectedXof) != "reçu/déclaré" (Payment) != "confirmé" (Payment.status=CONFIRMED)
+//   != "reversé au bénéficiaire" (Payout). Ne jamais fusionner ces notions côté application.
+// - Isolation stricte : toute requête côté serveur doit filtrer par TontineMembership de l'utilisateur courant.
+// - Les rôles de tontine (TontineMemberRole) sont un enum attaché à la TontineMembership plutôt qu'une table
+//   séparée : un membre peut cumuler responsable+trésorier via plusieurs lignes, cf. TontineMembership.role.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Utilisateurs & authentification
+// ---------------------------------------------------------------------------
+
+enum PlatformRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String       @id @default(cuid())
+  phone         String       @unique
+  email         String?      @unique
+  fullName      String
+  passwordHash  String
+  countryCode   String // pays de résidence, ISO 3166-1 alpha-2 (ex: CI, FR)
+  timezone      String       @default("Africa/Abidjan")
+  locale        String       @default("fr")
+  platformRole  PlatformRole @default(USER)
+  phoneVerified Boolean      @default(false)
+  isDemo        Boolean      @default(false)
+  isSuspended   Boolean      @default(false)
+  suspendedAt   DateTime?
+  suspendedReason String?
+  termsAcceptedAt DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime? // suppression logique
+
+  profile              UserProfile?
+  memberships          TontineMembership[]
+  tontinesCreated      Tontine[]
+  invitationsSent      Invitation[]          @relation("InvitationsSentByUser")
+  paymentsRecorded     Payment[]             @relation("PaymentsRecordedByUser")
+  paymentsValidated    Payment[]             @relation("PaymentsValidatedByUser")
+  payoutsRecorded      Payout[]              @relation("PayoutsRecordedByUser")
+  cashTransactions     CashTransaction[]     @relation("CashTransactionsRecordedByUser")
+  loanRequests         Loan[]                @relation("LoanRequestedByUser")
+  loanDecisions        Loan[]                @relation("LoanDecidedByUser")
+  loanRepayments       LoanRepayment[]       @relation("LoanRepaymentRecordedByUser")
+  rulesAcceptances     RulesAcceptance[]
+  notifications        Notification[]
+  disputesRaised        Dispute[]            @relation("DisputesRaisedByUser")
+  disputesResolved      Dispute[]            @relation("DisputesResolvedByUser")
+  auditLogs             AuditLog[]
+  attachmentsUploaded   Attachment[]
+  notificationPreferences NotificationPreference[]
+
+  @@index([countryCode])
+}
+
+model UserProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarUrl String?
+  address   String?
+  city      String?
+  bio       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NotificationPreference {
+  id        String             @id @default(cuid())
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  channel   NotificationChannel
+  enabled   Boolean            @default(true)
+
+  @@unique([userId, type, channel])
+}
+
+// ---------------------------------------------------------------------------
+// Tontines
+// ---------------------------------------------------------------------------
+
+enum TontineType {
+  ROTATIVE // tontine rotative classique
+  EPARGNE // épargne collective
+  VARIABLE // cotisations variables
+  SOLIDAIRE // campagnes solidaires (mariage, décès, naissance...)
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum TontineStatus {
+  DRAFT // en cours de configuration, pas encore démarrée
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+model Tontine {
+  id          String        @id @default(cuid())
+  name        String
+  type        TontineType
+  description String?
+  currency    String        @default("XOF")
+  status      TontineStatus @default(DRAFT)
+
+  // Paramètres de cotisation (sens dépend du type ; en unités entières XOF)
+  contributionAmountXof    Int? // montant fixe (tontine rotative/épargne)
+  minContributionAmountXof Int? // tontine à cotisations variables
+  recommendedAmountXof     Int? // tontine à cotisations variables
+  frequency                Frequency @default(MONTHLY)
+  startDate                DateTime?
+  feeAmountXof             Int       @default(0) // frais éventuels par cotisation
+
+  // Modules optionnels
+  loansEnabled Boolean @default(false) // caisse + prêts internes
+  loanInterestAllowed Boolean @default(false) // doit être activé explicitement par le groupe
+
+  // Objectif (épargne collective / solidaire)
+  goalAmountXof Int?
+  goalLabel     String?
+
+  isDemo    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  archivedAt DateTime?
+
+  createdById String
+  createdBy   User   @relation(fields: [createdById], references: [id])
+
+  memberships      TontineMembership[]
+  rules            TontineRules[]
+  invitations      Invitation[]
+  cycles           TontineCycle[]
+  contributions    Contribution[]
+  payouts          Payout[]
+  cashTransactions CashTransaction[]
+  loans            Loan[]
+  notifications    Notification[]
+  disputes         Dispute[]
+  auditLogs        AuditLog[]
+
+  @@index([createdById])
+}
+
+enum TontineMemberRole {
+  RESPONSABLE
+  TRESORIER
+  SECRETAIRE
+  MEMBRE
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  LEFT
+}
+
+model TontineMembership {
+  id         String            @id @default(cuid())
+  tontineId  String
+  tontine    Tontine           @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       TontineMemberRole @default(MEMBRE)
+  status     MembershipStatus  @default(ACTIVE)
+  joinedAt   DateTime          @default(now())
+  leftAt     DateTime?
+  leftReason String?
+  // position par défaut dans l'ordre des bénéficiaires (peut être redéfinie dans BeneficiaryOrder)
+  displayOrder Int @default(0)
+
+  contributions     Contribution[]
+  payoutsReceived   Payout[]
+  beneficiaryOrders BeneficiaryOrder[]
+  rulesAcceptances  RulesAcceptance[]
+  loanRequests      Loan[]
+  disputesRaised    Dispute[]
+
+  @@unique([tontineId, userId])
+  @@index([tontineId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Règlement et gouvernance
+// ---------------------------------------------------------------------------
+
+enum RulesStatus {
+  ACTIVE
+  SUPERSEDED
+}
+
+model TontineRules {
+  id          String      @id @default(cuid())
+  tontineId   String
+  tontine     Tontine     @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  version     Int
+  status      RulesStatus @default(ACTIVE)
+  content     Json // structure : montant, fréquence, ordre, retards, entrée/sortie, remboursement, frais, contestation, validation
+  changeNote  String?
+  createdAt   DateTime    @default(now())
+  supersededAt DateTime?
+
+  acceptances RulesAcceptance[]
+
+  @@unique([tontineId, version])
+}
+
+model RulesAcceptance {
+  id           String             @id @default(cuid())
+  rulesId      String
+  rules        TontineRules       @relation(fields: [rulesId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User               @relation(fields: [userId], references: [id])
+  membershipId String
+  membership   TontineMembership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  acceptedAt   DateTime           @default(now())
+
+  @@unique([rulesId, userId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model Invitation {
+  id          String           @id @default(cuid())
+  tontineId   String
+  tontine     Tontine          @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  code        String           @unique
+  phone       String? // destinataire pressenti, optionnel
+  role        TontineMemberRole @default(MEMBRE)
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  acceptedAt  DateTime?
+  acceptedByUserId String?
+
+  invitedById String
+  invitedBy   User   @relation("InvitationsSentByUser", fields: [invitedById], references: [id])
+
+  @@index([tontineId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Calendrier et ordre des bénéficiaires
+// ---------------------------------------------------------------------------
+
+enum CycleStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+model TontineCycle {
+  id            String      @id @default(cuid())
+  tontineId     String
+  tontine       Tontine     @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  periodIndex   Int // 1, 2, 3...
+  periodStart   DateTime
+  periodDue     DateTime // échéance de cotisation
+  status        CycleStatus @default(PENDING)
+  createdAt     DateTime    @default(now())
+
+  beneficiaryOrder BeneficiaryOrder?
+  contributions    Contribution[]
+  payout           Payout?
+
+  @@unique([tontineId, periodIndex])
+  @@index([tontineId, status])
+}
+
+model BeneficiaryOrder {
+  id             String             @id @default(cuid())
+  tontineId      String
+  cycleId        String             @unique
+  cycle          TontineCycle       @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  membershipId   String
+  membership     TontineMembership  @relation(fields: [membershipId], references: [id])
+  assignedMethod String             @default("MANUAL") // MANUAL | RANDOM_DRAW
+  confirmedAt    DateTime? // confirmation collective de l'ordre
+  changedReason  String? // si modifié après démarrage, motif obligatoire
+
+  @@index([tontineId])
+}
+
+// ---------------------------------------------------------------------------
+// Cotisations et paiements
+// ---------------------------------------------------------------------------
+
+enum ContributionStatus {
+  DUE
+  PARTIAL
+  DECLARED // déclaré par le membre, non vérifié
+  PENDING_VERIFICATION
+  CONFIRMED
+  REJECTED
+  REFUNDED
+  CANCELLED
+}
+
+model Contribution {
+  id                 String              @id @default(cuid())
+  tontineId          String
+  tontine            Tontine             @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  cycleId            String
+  cycle              TontineCycle        @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  membershipId       String
+  membership         TontineMembership   @relation(fields: [membershipId], references: [id])
+  amountExpectedXof  Int
+  amountConfirmedXof Int                 @default(0) // somme des paiements CONFIRMED
+  status             ContributionStatus  @default(DUE)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  payments  Payment[]
+  disputes  Dispute[]
+
+  @@unique([cycleId, membershipId])
+  @@index([tontineId, status])
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+}
+
+enum PaymentStatus {
+  DECLARED // déclaré par le membre ou enregistré manuellement, non vérifié
+  PENDING_VERIFICATION
+  CONFIRMED
+  REJECTED
+  REFUNDED
+  CANCELLED
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  contributionId String
+  contribution   Contribution  @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+  amountXof      Int
+  method         PaymentMethod
+  status         PaymentStatus @default(DECLARED)
+  isManualEntry  Boolean       @default(true) // false uniquement si confirmé par webhook prestataire
+  paidAt         DateTime
+  transactionRef String? // référence fournie par le membre / le prestataire
+  providerCode   PaymentProviderCode? // renseigné si method = MOBILE_MONEY
+  providerEventId String? // lien vers PaymentWebhookEvent si confirmation automatique
+  notes          String?
+  rejectionReason String?
+
+  recordedById String
+  recordedBy   User   @relation("PaymentsRecordedByUser", fields: [recordedById], references: [id])
+  validatedById String?
+  validatedBy   User?  @relation("PaymentsValidatedByUser", fields: [validatedById], references: [id])
+  validatedAt   DateTime?
+
+  // Une correction ne supprime jamais un paiement confirmé : elle crée une opération de rectification
+  // liée via correctsPaymentId, avec motif et traçabilité (cf. AuditLog).
+  correctsPaymentId String? @unique
+  correctsPayment   Payment? @relation("PaymentCorrection", fields: [correctsPaymentId], references: [id])
+  correctedBy       Payment? @relation("PaymentCorrection")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([contributionId, status])
+  @@index([transactionRef])
+}
+
+enum PaymentProviderCode {
+  ORANGE_MONEY
+  MTN_MOMO
+  MOOV_MONEY
+  WAVE
+}
+
+// Journal brut des notifications webhook reçues des prestataires Mobile Money,
+// avant tout traitement métier. Clé d'idempotence = (providerCode, externalEventId).
+model PaymentWebhookEvent {
+  id               String   @id @default(cuid())
+  providerCode     PaymentProviderCode
+  externalEventId  String
+  rawPayload       Json
+  signatureValid   Boolean  @default(false)
+  processedAt      DateTime?
+  processingError  String?
+  receivedAt       DateTime @default(now())
+
+  @@unique([providerCode, externalEventId])
+}
+
+enum PayoutStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model Payout {
+  id           String       @id @default(cuid())
+  tontineId    String
+  tontine      Tontine      @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  cycleId      String       @unique
+  cycle        TontineCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  membershipId String
+  membership   TontineMembership @relation(fields: [membershipId], references: [id])
+  amountXof    Int
+  status       PayoutStatus @default(PENDING)
+  method       PaymentMethod?
+  transactionRef String?
+  confirmedAt  DateTime?
+  notes        String?
+
+  recordedById String
+  recordedBy   User   @relation("PayoutsRecordedByUser", fields: [recordedById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments Attachment[]
+
+  @@index([tontineId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Caisse / épargne libre (hors cotisations de rotation) et prêts internes
+// ---------------------------------------------------------------------------
+
+enum CashTransactionType {
+  DEPOSIT // entrée (ex : cotisation d'épargne, don solidaire)
+  EXPENSE // dépense autorisée
+  LOAN_DISBURSEMENT
+  LOAN_REPAYMENT
+  ADJUSTMENT // rectification traçable
+}
+
+model CashTransaction {
+  id          String              @id @default(cuid())
+  tontineId   String
+  tontine     Tontine             @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  type        CashTransactionType
+  amountXof   Int
+  label       String
+  occurredAt  DateTime            @default(now())
+  notes       String?
+
+  recordedById String
+  recordedBy   User   @relation("CashTransactionsRecordedByUser", fields: [recordedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  attachments Attachment[]
+
+  @@index([tontineId, type])
+}
+
+enum LoanStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  DISBURSED
+  REPAYING
+  REPAID
+  DEFAULTED
+  CANCELLED
+}
+
+model Loan {
+  id              String     @id @default(cuid())
+  tontineId       String
+  tontine         Tontine    @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  membershipId    String
+  membership      TontineMembership @relation(fields: [membershipId], references: [id])
+  amountXof       Int
+  reason          String?
+  status          LoanStatus @default(REQUESTED)
+  interestRateBp  Int        @default(0) // points de base ; 0 sauf si explicitement activé par le règlement
+  requestedAt     DateTime   @default(now())
+  dueDate         DateTime?
+  decisionNote    String?
+
+  requestedById String
+  requestedBy   User   @relation("LoanRequestedByUser", fields: [requestedById], references: [id])
+  decidedById   String?
+  decidedBy     User?  @relation("LoanDecidedByUser", fields: [decidedById], references: [id])
+  decidedAt     DateTime?
+
+  repayments  LoanRepayment[]
+  attachments Attachment[]
+
+  @@index([tontineId, status])
+}
+
+model LoanRepayment {
+  id        String   @id @default(cuid())
+  loanId    String
+  loan      Loan     @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  amountXof Int
+  paidAt    DateTime
+  notes     String?
+
+  recordedById String
+  recordedBy   User   @relation("LoanRepaymentRecordedByUser", fields: [recordedById], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([loanId])
+}
+
+// ---------------------------------------------------------------------------
+// Notifications
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  INVITATION_NEW
+  CONTRIBUTION_UPCOMING
+  CONTRIBUTION_LATE
+  PAYMENT_CONFIRMED
+  PAYMENT_REJECTED
+  CYCLE_UPCOMING
+  PAYOUT_CONFIRMED
+  RULES_CHANGED
+  REPORT_PUBLISHED
+  DISPUTE_UPDATE
+  LOAN_UPDATE
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+model Notification {
+  id         String               @id @default(cuid())
+  userId     String
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tontineId  String?
+  tontine    Tontine?             @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  channel    NotificationChannel  @default(IN_APP)
+  title      String
+  body       String
+  readAt     DateTime?
+  sentAt     DateTime?
+  deliveryError String? // ex: "aucun fournisseur SMS configuré"
+  createdAt  DateTime             @default(now())
+
+  @@index([userId, readAt])
+}
+
+// ---------------------------------------------------------------------------
+// Contestations
+// ---------------------------------------------------------------------------
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+model Dispute {
+  id             String        @id @default(cuid())
+  tontineId      String
+  tontine        Tontine       @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  contributionId String?
+  contribution   Contribution? @relation(fields: [contributionId], references: [id])
+  raisedByMembershipId String
+  raisedByMembership   TontineMembership @relation(fields: [raisedByMembershipId], references: [id])
+  raisedById     String
+  raisedBy       User          @relation("DisputesRaisedByUser", fields: [raisedById], references: [id])
+  subject        String
+  description    String
+  status         DisputeStatus @default(OPEN)
+  resolution     String?
+  resolvedById   String?
+  resolvedBy     User?         @relation("DisputesResolvedByUser", fields: [resolvedById], references: [id])
+  resolvedAt     DateTime?
+  createdAt      DateTime      @default(now())
+
+  attachments Attachment[]
+
+  @@index([tontineId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Journal d'audit & pièces jointes
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tontineId  String?
+  tontine    Tontine? @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String // ex: "payment.confirm", "rules.change", "member.remove"
+  entityType String
+  entityId   String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  @@index([tontineId, createdAt])
+  @@index([entityType, entityId])
+}
+
+model Attachment {
+  id           String   @id @default(cuid())
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String // chemin de stockage local/objet
+  createdAt    DateTime @default(now())
+
+  paymentId  String?
+  payment    Payment? @relation(fields: [paymentId], references: [id])
+  payoutId   String?
+  payout     Payout?  @relation(fields: [payoutId], references: [id])
+  loanId     String?
+  loan       Loan?    @relation(fields: [loanId], references: [id])
+  disputeId  String?
+  dispute    Dispute? @relation(fields: [disputeId], references: [id])
+  cashTxId   String?
+  cashTx     CashTransaction? @relation(fields: [cashTxId], references: [id])
+
+  @@index([paymentId])
+}
