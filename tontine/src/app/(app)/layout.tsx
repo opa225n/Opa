@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signOut } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { TontineLogo } from "@/components/brand/logo";
+import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 
 const NAV = [
   { href: "/dashboard", label: "Tableau de bord" },
@@ -20,6 +22,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const isPlatformAdmin =
     (session.user as typeof session.user & { platformRole?: string }).platformRole === "ADMIN";
   const nav = isPlatformAdmin ? [...NAV, { href: "/admin", label: "Administration" }] : NAV;
+
+  const currentUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { onboardingSeenAt: true },
+  });
 
   return (
     <div className="min-h-screen bg-[var(--background)]">
@@ -56,6 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+      {!currentUser?.onboardingSeenAt && <OnboardingTour />}
     </div>
   );
 }

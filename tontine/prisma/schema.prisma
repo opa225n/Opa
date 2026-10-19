@@ -33,24 +33,25 @@ enum PlatformRole {
 }
 
 model User {
-  id              String       @id @default(cuid())
-  phone           String       @unique
-  email           String?      @unique
-  fullName        String
-  passwordHash    String
-  countryCode     String // pays de résidence, ISO 3166-1 alpha-2 (ex: CI, FR)
-  timezone        String       @default("Africa/Abidjan")
-  locale          String       @default("fr")
-  platformRole    PlatformRole @default(USER)
-  phoneVerified   Boolean      @default(false)
-  isDemo          Boolean      @default(false)
-  isSuspended     Boolean      @default(false)
-  suspendedAt     DateTime?
-  suspendedReason String?
-  termsAcceptedAt DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-  deletedAt       DateTime? // suppression logique
+  id               String       @id @default(cuid())
+  phone            String       @unique
+  email            String?      @unique
+  fullName         String
+  passwordHash     String
+  countryCode      String // pays de résidence, ISO 3166-1 alpha-2 (ex: CI, FR)
+  timezone         String       @default("Africa/Abidjan")
+  locale           String       @default("fr")
+  platformRole     PlatformRole @default(USER)
+  phoneVerified    Boolean      @default(false)
+  isDemo           Boolean      @default(false)
+  isSuspended      Boolean      @default(false)
+  suspendedAt      DateTime?
+  suspendedReason  String?
+  termsAcceptedAt  DateTime?
+  onboardingSeenAt DateTime? // non-null une fois le guide de prise en main vu (sert à l'afficher une seule fois, par compte — pas par appareil)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  deletedAt        DateTime? // suppression logique
 
   profile                 UserProfile?
   memberships             TontineMembership[]
