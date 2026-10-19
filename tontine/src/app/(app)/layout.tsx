@@ -16,6 +16,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     redirect("/connexion");
   }
 
+  const isPlatformAdmin =
+    (session.user as typeof session.user & { platformRole?: string }).platformRole === "ADMIN";
+  const nav = isPlatformAdmin ? [...NAV, { href: "/admin", label: "Administration" }] : NAV;
+
   return (
     <div className="min-h-screen bg-[var(--background)]">
       <header className="sticky top-0 z-10 border-b border-stone-200 bg-white/90 backdrop-blur">
@@ -24,7 +28,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             Tontine CI
           </Link>
           <nav className="hidden items-center gap-5 text-sm font-medium text-stone-600 sm:flex">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <Link key={item.href} href={item.href} className="hover:text-brand">
                 {item.label}
               </Link>
@@ -42,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </form>
         </div>
         <nav className="flex items-center gap-4 overflow-x-auto border-t border-stone-100 px-4 py-2 text-sm font-medium text-stone-600 sm:hidden">
-          {NAV.map((item) => (
+          {nav.map((item) => (
             <Link key={item.href} href={item.href} className="whitespace-nowrap hover:text-brand">
               {item.label}
             </Link>
