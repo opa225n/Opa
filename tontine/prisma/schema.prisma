@@ -13,8 +13,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // DATABASE_URL : pooler Supavisor en mode Transaction (port 6543), utilisé par
+  // Prisma Client à l'exécution — adapté aux fonctions serverless (connexions
+  // courtes et nombreuses). DIRECT_URL : pooler en mode Session (port 5432),
+  // utilisé uniquement par `prisma migrate deploy` au build (nécessite une
+  // session persistante pour le verrou advisory de migration).
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ---------------------------------------------------------------------------
