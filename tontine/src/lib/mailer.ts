@@ -1,4 +1,5 @@
 import "server-only";
+import { getBirdApiBase } from "@/lib/bird-client";
 
 /**
  * Envoi d'emails transactionnels via Bird (https://bird.com) — même principe que
@@ -12,19 +13,6 @@ import "server-only";
  * vérifié dans Bird (Email > Domains) avant que l'envoi réel ne fonctionne — tant qu'il ne
  * l'est pas, Bird refuse l'envoi et l'appelant doit retomber sur le mode démonstration.
  */
-
-const BIRD_API_BASE: Record<string, string> = {
-  bk_eu1: "https://eu1.platform.bird.com",
-  bk_us1: "https://us1.platform.bird.com",
-};
-
-function getBirdApiBase(apiKey: string): string {
-  const region = apiKey.startsWith("bk_eu1_") ? "bk_eu1" : apiKey.startsWith("bk_us1_") ? "bk_us1" : null;
-  if (!region) {
-    throw new Error("BIRD_API_KEY a un format inattendu (préfixe bk_eu1_ ou bk_us1_ attendu).");
-  }
-  return BIRD_API_BASE[region];
-}
 
 export function isMailerConfigured(): boolean {
   return Boolean(process.env.BIRD_API_KEY && process.env.BIRD_FROM_EMAIL);

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { TontineLogo } from "@/components/brand/logo";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
+import { PhoneVerificationGate } from "@/components/phone-verification/phone-verification-gate";
 
 const NAV = [
   { href: "/dashboard", label: "Tableau de bord" },
@@ -25,8 +26,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { onboardingSeenAt: true },
+    select: { onboardingSeenAt: true, phoneVerified: true, phone: true },
   });
+
+  if (currentUser && !currentUser.phoneVerified) {
+    return <PhoneVerificationGate phone={currentUser.phone} />;
+  }
 
   return (
     <div className="min-h-screen bg-[var(--background)]">

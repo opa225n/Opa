@@ -72,6 +72,7 @@ model User {
   attachmentsUploaded     Attachment[]
   notificationPreferences NotificationPreference[]
   passwordResetTokens     PasswordResetToken[]
+  phoneVerificationCodes  PhoneVerificationCode[]
 
   @@index([countryCode])
 }
@@ -107,6 +108,22 @@ model PasswordResetToken {
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// Code de vérification du numéro de téléphone (OTP à 6 chiffres), envoyé par SMS. Même
+// principe que PasswordResetToken : seul le hash SHA-256 du code est stocké, courte durée de
+// vie, et un nombre d'essais limité pour empêcher le brute-force sur 6 chiffres.
+model PhoneVerificationCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  attempts  Int       @default(0)
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())
