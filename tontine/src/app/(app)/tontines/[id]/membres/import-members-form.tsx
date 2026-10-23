@@ -74,7 +74,12 @@ export function ImportMembersForm({ tontineId }: { tontineId: string }) {
         <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-50">
           <Upload className="h-4 w-4 text-[var(--brand-gold)]" />
           Importer une liste (.csv)
-          <input type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
+          <input
+            type="file"
+            accept=".csv,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel,text/plain"
+            className="hidden"
+            onChange={handleFileChange}
+          />
         </label>
         <p className="text-xs text-stone-400">
           Colonnes &laquo;&nbsp;Nom&nbsp;&raquo; (ou 1re colonne) et &laquo;&nbsp;Téléphone&nbsp;&raquo;
