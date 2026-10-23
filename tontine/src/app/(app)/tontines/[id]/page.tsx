@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Crown, ArrowRight, Coins, Settings } from "lucide-react";
 import { getTontineContext } from "@/lib/get-tontine-context";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -70,7 +71,9 @@ export default async function TontineOverviewPage({
       {tontine.status === "DRAFT" && (
         <Card>
           <CardHeader>
-            <CardTitle>Tontine en préparation</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-4 w-4 text-[var(--brand-gold)]" /> Tontine en préparation
+            </CardTitle>
             <CardDescription>
               Ajoutez vos membres et définissez l&apos;ordre des bénéficiaires avant de démarrer.
               {" "}
@@ -95,7 +98,9 @@ export default async function TontineOverviewPage({
               )}
               <Card>
                 <CardHeader>
-                  <CardTitle>Bénéficiaire actuel</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="h-4 w-4 text-[var(--brand-gold)]" /> Bénéficiaire actuel
+                  </CardTitle>
                   <CardDescription>
                     Tour {section.current?.periodIndex} · échéance le{" "}
                     {section.current?.periodDue.toLocaleDateString("fr-FR")}
@@ -114,7 +119,9 @@ export default async function TontineOverviewPage({
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Prochain bénéficiaire</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <ArrowRight className="h-4 w-4 text-[var(--brand-gold)]" /> Prochain bénéficiaire
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-lg font-semibold text-stone-900">
@@ -127,7 +134,9 @@ export default async function TontineOverviewPage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Cotisations du tour en cours</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Coins className="h-4 w-4 text-[var(--brand-gold)]" /> Cotisations du tour en cours
+              </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-1 text-sm">
               <p>
@@ -146,7 +155,9 @@ export default async function TontineOverviewPage({
 
           <Card>
             <CardHeader>
-              <CardTitle>Paramètres</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-4 w-4 text-[var(--brand-gold)]" /> Paramètres
+              </CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-stone-600">
               <p>Montant : {formatXof(tontine.contributionAmountXof ?? 0)}</p>

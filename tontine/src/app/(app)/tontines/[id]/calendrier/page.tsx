@@ -52,7 +52,7 @@ export default async function CalendarPage({
               href={`?group=${g.id}`}
               className={`whitespace-nowrap rounded-full px-3 py-1 text-sm ${
                 selectedGroupId === g.id
-                  ? "bg-emerald-800 text-white"
+                  ? "bg-[var(--brand)] text-[var(--background)]"
                   : "bg-stone-100 text-stone-700 hover:bg-stone-200"
               }`}
             >
@@ -68,7 +68,7 @@ export default async function CalendarPage({
           <Card key={cycle.id}>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
               <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-800">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--brand-gold)]/20 text-sm font-bold text-[var(--brand)]">
                   {cycle.periodIndex}
                 </span>
                 <div>

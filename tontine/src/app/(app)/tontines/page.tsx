@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus, Users } from "lucide-react";
 import { requireUser } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,9 @@ export default async function TontinesPage() {
           <p className="text-sm text-stone-500">Toutes les tontines dont vous êtes membre.</p>
         </div>
         <Link href="/tontines/nouveau">
-          <Button>Nouvelle tontine</Button>
+          <Button>
+            <Plus className="h-4 w-4" /> Nouvelle tontine
+          </Button>
         </Link>
       </div>
 
@@ -49,7 +52,9 @@ export default async function TontinesPage() {
               <Card className="h-full transition-shadow hover:shadow-md">
                 <CardHeader>
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle>{m.tontine.name}</CardTitle>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-4 w-4 text-[var(--brand-gold)]" /> {m.tontine.name}
+                    </CardTitle>
                     {m.tontine.isDemo && <Badge variant="warning">Démo</Badge>}
                   </div>
                   <CardDescription>

@@ -1,3 +1,4 @@
+import { Download, Users, AlertTriangle } from "lucide-react";
 import { getTontineContext } from "@/lib/get-tontine-context";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -34,21 +35,27 @@ export default async function ReportsPage({ params }: { params: Promise<{ id: st
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Export</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-4 w-4 text-[var(--brand-gold)]" /> Export
+          </CardTitle>
           <CardDescription>
             Export CSV complet des cotisations et paiements (ouvrable dans Excel/Google Sheets).
           </CardDescription>
         </CardHeader>
         <CardContent>
           <a href={`/api/tontines/${id}/export`}>
-            <Button variant="outline">Télécharger le CSV</Button>
+            <Button variant="outline">
+              <Download className="h-4 w-4" /> Télécharger le CSV
+            </Button>
           </a>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Rapport par membre</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-[var(--brand-gold)]" /> Rapport par membre
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -83,7 +90,9 @@ export default async function ReportsPage({ params }: { params: Promise<{ id: st
 
       <Card>
         <CardHeader>
-          <CardTitle>Rapport des retards</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-[var(--brand-gold)]" /> Rapport des retards
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {lateContributions.length === 0 && (

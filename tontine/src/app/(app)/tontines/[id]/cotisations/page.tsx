@@ -1,3 +1,4 @@
+import { User as UserIcon } from "lucide-react";
 import { getTontineContext } from "@/lib/get-tontine-context";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,7 +72,7 @@ export default async function ContributionsPage({
               href={`?group=${g.id}`}
               className={`whitespace-nowrap rounded-full px-3 py-1 text-sm ${
                 selectedGroupId === g.id
-                  ? "bg-emerald-800 text-white"
+                  ? "bg-[var(--brand)] text-[var(--background)]"
                   : "bg-stone-100 text-stone-700 hover:bg-stone-200"
               }`}
             >
@@ -88,7 +89,7 @@ export default async function ContributionsPage({
             href={selectedGroupId ? `?group=${selectedGroupId}&cycle=${c.periodIndex}` : `?cycle=${c.periodIndex}`}
             className={`whitespace-nowrap rounded-full px-3 py-1 text-sm ${
               selectedCycle?.id === c.id
-                ? "bg-emerald-800 text-white"
+                ? "bg-[var(--brand)] text-[var(--background)]"
                 : "bg-stone-100 text-stone-700 hover:bg-stone-200"
             }`}
           >
@@ -104,7 +105,9 @@ export default async function ContributionsPage({
           return (
             <Card key={c.id} data-testid={`contribution-card-${c.membershipId}`}>
               <CardHeader className="flex-row items-center justify-between">
-                <CardTitle>{c.membership.user.fullName}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <UserIcon className="h-4 w-4 text-[var(--brand-gold)]" /> {c.membership.user.fullName}
+                </CardTitle>
                 <div className="flex items-center gap-2">
                   {c.penaltyXof > 0 && (
                     <Badge variant="destructive">+{formatXof(c.penaltyXof)} pénalité</Badge>

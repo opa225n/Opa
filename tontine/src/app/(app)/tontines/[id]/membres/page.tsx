@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { UserPlus, UserCog, Mail, Users, ListOrdered } from "lucide-react";
 import { getTontineContext } from "@/lib/get-tontine-context";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -66,7 +67,9 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
       {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle>Inviter un membre</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4 text-[var(--brand-gold)]" /> Inviter un membre
+            </CardTitle>
             <CardDescription>
               Génère un lien à usage unique, valable 7 jours. La personne doit créer un compte ou
               se connecter pour rejoindre la tontine.
@@ -81,7 +84,9 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
       {canManage && (
         <Card>
           <CardHeader>
-            <CardTitle>Ajouter un membre sans compte</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <UserCog className="h-4 w-4 text-[var(--brand-gold)]" /> Ajouter un membre sans compte
+            </CardTitle>
             <CardDescription>
               Pour un membre sans smartphone/compte : vous gérez entièrement ses cotisations et
               paiements (il ne peut pas se connecter lui-même).
@@ -96,7 +101,9 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
       {canManage && invitations.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Invitations en attente</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="h-4 w-4 text-[var(--brand-gold)]" /> Invitations en attente
+            </CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             {invitations.map((inv) => (
@@ -130,7 +137,9 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
       {(canManageGroups || groups.length > 0) && (
         <Card>
           <CardHeader>
-            <CardTitle>Groupes</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-[var(--brand-gold)]" /> Groupes
+            </CardTitle>
             <CardDescription>
               Facultatif : répartissez les membres en groupes pour des rotations parallèles
               (chaque groupe a son propre ordre de bénéficiaires et son propre calendrier de
@@ -166,8 +175,8 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
       {groupedSections.map(({ group, rows }) => (
         <Card key={group.id}>
           <CardHeader>
-            <CardTitle>
-              Groupe « {group.name} » ({rows.length})
+            <CardTitle className="flex items-center gap-2">
+              <ListOrdered className="h-4 w-4 text-[var(--brand-gold)]" /> Groupe « {group.name} » ({rows.length})
             </CardTitle>
             <CardDescription>
               {canReorder
@@ -191,7 +200,8 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
       {(groups.length === 0 || ungroupedRows.length > 0) && (
       <Card>
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ListOrdered className="h-4 w-4 text-[var(--brand-gold)]" />{" "}
             {groups.length > 0 ? `Sans groupe (${ungroupedRows.length})` : `Membres (${memberships.length})`}
           </CardTitle>
           <CardDescription>

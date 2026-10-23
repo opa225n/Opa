@@ -1,3 +1,4 @@
+import { CheckCheck } from "lucide-react";
 import { requireUser } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardTitle } from "@/components/ui/card";
@@ -18,7 +19,7 @@ export default async function NotificationsPage() {
         <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">Notifications</h1>
         <form action={markAllNotificationsReadAction}>
           <Button type="submit" variant="outline" size="sm">
-            Tout marquer comme lu
+            <CheckCheck className="h-4 w-4" /> Tout marquer comme lu
           </Button>
         </form>
       </div>
@@ -32,7 +33,9 @@ export default async function NotificationsPage() {
             <div
               key={n.id}
               className={`flex items-start justify-between gap-3 rounded-lg border px-4 py-3 ${
-                n.readAt ? "border-stone-100 bg-white" : "border-emerald-200 bg-emerald-50"
+                n.readAt
+                  ? "border-stone-100 bg-white"
+                  : "border-[var(--brand-gold)]/40 bg-[var(--brand-gold)]/5"
               }`}
             >
               <div>

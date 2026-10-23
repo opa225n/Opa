@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Users, LayoutList } from "lucide-react";
 import { requirePlatformAdmin } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -93,7 +94,9 @@ export default async function AdminOverviewPage() {
 
       <Card id="tontines" className="scroll-mt-20">
         <CardHeader>
-          <CardTitle>Tontines ({tontineCount})</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <LayoutList className="h-4 w-4 text-[var(--brand-gold)]" /> Tontines ({tontineCount})
+          </CardTitle>
           <CardDescription>Les 50 plus récentes.</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -146,7 +149,9 @@ export default async function AdminOverviewPage() {
 
       <Card id="utilisateurs" className="scroll-mt-20">
         <CardHeader>
-          <CardTitle>Utilisateurs ({userCount})</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-[var(--brand-gold)]" /> Utilisateurs ({userCount})
+          </CardTitle>
           <CardDescription>Les 50 plus récents.</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
