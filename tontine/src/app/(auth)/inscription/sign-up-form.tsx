@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { User, Phone, Users, UserPlus, Eye } from "lucide-react";
+import { User, Phone, Users, UserPlus, Eye, ChevronRight, ArrowRight } from "lucide-react";
 import { signUpSchema, type SignUpInput } from "@/lib/validations/auth";
 import { signUpAction } from "@/app/actions/auth";
 import { signInAction } from "@/app/actions/session";
@@ -25,6 +25,8 @@ const COUNTRIES = [
   { code: "CA", label: "Canada" },
   { code: "BE", label: "Belgique" },
 ];
+
+const fieldInputClass = "h-12 rounded-xl border-stone-200 bg-white text-base";
 
 export function SignUpForm() {
   const router = useRouter();
@@ -84,23 +86,33 @@ export function SignUpForm() {
       {serverError && <Alert variant="destructive">{serverError}</Alert>}
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="fullName">Nom et prénom</Label>
+        <Label htmlFor="fullName" className="font-semibold text-[var(--brand)]">
+          Nom et prénom
+        </Label>
         <div className="relative">
-          <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-          <Input id="fullName" autoComplete="name" className="pl-9" {...register("fullName")} />
+          <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+          <Input
+            id="fullName"
+            placeholder="Ex : Konan Antoinette"
+            autoComplete="name"
+            className={cn(fieldInputClass, "pl-10")}
+            {...register("fullName")}
+          />
         </div>
         {errors.fullName && <p className="text-sm text-red-600">{errors.fullName.message}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="phone">Numéro de téléphone</Label>
+        <Label htmlFor="phone" className="font-semibold text-[var(--brand)]">
+          Numéro de téléphone
+        </Label>
         <div className="relative">
-          <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+          <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
           <Input
             id="phone"
-            placeholder="+2250700000000"
+            placeholder="Ex : +225 07 12 34 56 78"
             autoComplete="tel"
-            className="pl-9"
+            className={cn(fieldInputClass, "pl-10")}
             {...register("phone")}
           />
         </div>
@@ -108,50 +120,72 @@ export function SignUpForm() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label>Je souhaite</Label>
+        <Label className="font-semibold text-[var(--brand)]">Je souhaite</Label>
         <div className="grid grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => setDestination("JOIN")}
-            className={cn(
-              "flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
-              destination === "JOIN"
-                ? "border-brand-gold bg-brand-gold/10"
-                : "border-stone-200 hover:border-stone-300"
-            )}
-          >
-            <Users className="h-5 w-5 text-brand" />
-            <span className="text-sm font-medium text-stone-900">Rejoindre une tontine existante</span>
-            <span className="text-xs text-stone-500">Accédez à une tontine grâce à un code.</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setDestination("CREATE")}
-            className={cn(
-              "flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
-              destination === "CREATE"
-                ? "border-brand-gold bg-brand-gold/10"
-                : "border-stone-200 hover:border-stone-300"
-            )}
-          >
-            <UserPlus className="h-5 w-5 text-brand" />
-            <span className="text-sm font-medium text-stone-900">Créer une nouvelle tontine</span>
-            <span className="text-xs text-stone-500">Rassemblez vos proches et démarrez.</span>
-          </button>
+          {(
+            [
+              {
+                value: "JOIN" as const,
+                icon: Users,
+                title: "Rejoindre une tontine existante",
+                description: "Accédez à une tontine proche de vous.",
+              },
+              {
+                value: "CREATE" as const,
+                icon: UserPlus,
+                title: "Créer une nouvelle tontine",
+                description: "Rassemblez vos proches et démarrez.",
+              },
+            ]
+          ).map((option) => {
+            const selected = destination === option.value;
+            const Icon = option.icon;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setDestination(option.value)}
+                className={cn(
+                  "flex flex-col gap-2 rounded-2xl border p-4 text-left transition-colors",
+                  selected ? "border-[var(--brand-gold)] bg-[var(--brand-gold)]/10" : "border-stone-200 bg-white hover:border-stone-300"
+                )}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--brand-gold)]/20 text-[var(--brand)]">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span
+                    className={cn(
+                      "flex h-5 w-5 items-center justify-center rounded-full border-2",
+                      selected ? "border-[var(--brand-gold)]" : "border-stone-300"
+                    )}
+                  >
+                    {selected && <span className="h-2.5 w-2.5 rounded-full bg-[var(--brand-gold)]" />}
+                  </span>
+                </div>
+                <span className="text-sm font-semibold text-stone-900">{option.title}</span>
+                <span className="text-xs text-stone-500">{option.description}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="email">E-mail (facultatif)</Label>
-        <Input id="email" type="email" autoComplete="email" {...register("email")} />
+        <Label htmlFor="email" className="font-semibold text-[var(--brand)]">
+          E-mail (facultatif)
+        </Label>
+        <Input id="email" type="email" autoComplete="email" className={fieldInputClass} {...register("email")} />
         {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="countryCode">Pays de résidence</Label>
+        <Label htmlFor="countryCode" className="font-semibold text-[var(--brand)]">
+          Pays de résidence
+        </Label>
         <select
           id="countryCode"
-          className="h-11 w-full rounded-lg border border-stone-300 bg-white px-3 text-base"
+          className={cn(fieldInputClass, "w-full px-3")}
           {...register("countryCode")}
         >
           {COUNTRIES.map((c) => (
@@ -164,24 +198,42 @@ export function SignUpForm() {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="password">Mot de passe</Label>
-        <Input id="password" type="password" autoComplete="new-password" {...register("password")} />
+        <Label htmlFor="password" className="font-semibold text-[var(--brand)]">
+          Mot de passe
+        </Label>
+        <Input
+          id="password"
+          type="password"
+          autoComplete="new-password"
+          className={fieldInputClass}
+          {...register("password")}
+        />
         {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
       </div>
 
-      <div className="flex gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
-        <Eye className="mt-0.5 h-4 w-4 shrink-0 text-brand-gold" />
-        <div>
-          <p className="text-sm font-medium text-stone-900">Règle de transparence</p>
+      <Link
+        href="/confidentialite"
+        target="_blank"
+        className="flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3 transition-colors hover:border-stone-300"
+      >
+        <Eye className="h-5 w-5 shrink-0 text-[var(--brand-gold)]" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-stone-900">Règle de transparence</p>
           <p className="text-sm text-stone-600">
             En rejoignant Tontine CI, vous acceptez que les cotisations, les statuts de paiement
             et les dates soient visibles par les membres de la tontine, selon la règle définie
             par le groupe.
           </p>
         </div>
-      </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
+      </Link>
+
       <label className="flex items-start gap-2 text-sm text-stone-600">
-        <input type="checkbox" className="mt-1" {...register("acceptTransparency")} />
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4 accent-[var(--brand-gold)]"
+          {...register("acceptTransparency")}
+        />
         <span>J&apos;accepte la règle de transparence</span>
       </label>
       {errors.acceptTransparency && (
@@ -189,7 +241,11 @@ export function SignUpForm() {
       )}
 
       <label className="flex items-start gap-2 text-sm text-stone-600">
-        <input type="checkbox" className="mt-1" {...register("acceptTerms")} />
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4 accent-[var(--brand-gold)]"
+          {...register("acceptTerms")}
+        />
         <span>
           J&apos;accepte les{" "}
           <Link href="/cgu" target="_blank" className="text-brand underline-offset-4 hover:underline">
@@ -208,8 +264,14 @@ export function SignUpForm() {
       </label>
       {errors.acceptTerms && <p className="text-sm text-red-600">{errors.acceptTerms.message}</p>}
 
-      <Button type="submit" disabled={submitting} size="lg">
-        {submitting ? "Création du compte..." : "Créer mon compte"}
+      <Button type="submit" variant="gold" disabled={submitting} size="lg" className="w-full rounded-full">
+        {submitting ? (
+          "Création du compte..."
+        ) : (
+          <>
+            Créer mon compte <ArrowRight className="h-4 w-4" />
+          </>
+        )}
       </Button>
     </form>
   );

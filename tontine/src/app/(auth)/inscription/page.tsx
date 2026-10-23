@@ -1,28 +1,38 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ChevronLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { SignUpForm } from "./sign-up-form";
 
 export default function SignUpPage() {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Créer votre compte</CardTitle>
-        <CardDescription>
-          Rejoignez une tontine ou créez la vôtre en quelques étapes.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className="flex flex-col gap-1">
+      <h1 className="font-display text-2xl font-bold text-[var(--brand)]">Créer votre compte</h1>
+      <p className="text-sm text-stone-500">
+        Rejoignez une tontine ou créez la vôtre en quelques étapes.
+      </p>
+
+      <div className="mt-4">
         <Suspense>
           <SignUpForm />
         </Suspense>
-        <p className="mt-4 text-center text-sm text-stone-600">
-          Déjà inscrit ?{" "}
-          <Link href="/connexion" className="font-medium text-brand underline-offset-4 hover:underline">
-            Se connecter
-          </Link>
-        </p>
-      </CardContent>
-    </Card>
+      </div>
+
+      <div className="mt-2 flex items-center gap-3">
+        <div className="h-px flex-1 bg-stone-200" />
+        <span className="text-xs text-stone-400">Ou</span>
+        <div className="h-px flex-1 bg-stone-200" />
+      </div>
+
+      <Link href="/connexion" className="mt-2">
+        <Button type="button" variant="outline" size="lg" className="w-full rounded-full">
+          <ChevronLeft className="h-4 w-4" /> Se connecter
+        </Button>
+      </Link>
+
+      <p className="mt-4 text-center text-xs text-stone-400">
+        Besoin d&apos;aide ? <span className="font-medium text-[var(--brand)]">Contactez-nous</span>
+      </p>
+    </div>
   );
 }
