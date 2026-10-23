@@ -1,3 +1,4 @@
+import { Wallet, Receipt } from "lucide-react";
 import { getTontineContext } from "@/lib/get-tontine-context";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,13 +34,30 @@ export default async function OperationsPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">Opérations</h1>
+        <p className="text-sm text-stone-500">Versements et paiements de la tontine.</p>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Versements aux bénéficiaires</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-[var(--brand-gold)]" /> Versements aux bénéficiaires
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
+          {payouts.length === 0 && (
+            <p className="text-sm text-stone-500">Aucun versement pour le moment.</p>
+          )}
           {payouts.map((p) => (
-            <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm">
+            <div
+              key={p.id}
+              className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
+                p.status === "PENDING"
+                  ? "border-[var(--brand-gold)]/40 bg-[var(--brand-gold)]/5"
+                  : "border-stone-200"
+              }`}
+            >
               <span>
                 {p.cycle.group ? `${p.cycle.group.name} · ` : ""}Tour {p.cycle.periodIndex} ·{" "}
                 {p.membership.user.fullName}
@@ -58,7 +76,9 @@ export default async function OperationsPage({ params }: { params: Promise<{ id:
 
       <Card>
         <CardHeader>
-          <CardTitle>Historique des paiements</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-[var(--brand-gold)]" /> Historique des paiements
+          </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
           {payments.map((p) => (

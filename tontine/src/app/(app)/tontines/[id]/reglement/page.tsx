@@ -1,3 +1,4 @@
+import { Coins, CalendarDays, Clock, Users, LogOut, Scale, CheckCircle2, ScrollText } from "lucide-react";
 import { getTontineContext } from "@/lib/get-tontine-context";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -41,50 +42,60 @@ export default async function RulesPage({ params }: { params: Promise<{ id: stri
 
   const myAcceptance = rules.acceptances.find((a) => a.userId === user.id);
 
+  const items = [
+    {
+      icon: Coins,
+      label: "Montant de cotisation",
+      value: `${formatXof(content.montant)}${content.frais > 0 ? ` + ${formatXof(content.frais)} de frais` : ""}`,
+    },
+    { icon: CalendarDays, label: "Nombre de tours", value: String(content.nombreDeTours) },
+    ...(content.groupes && content.groupes.length > 0
+      ? [
+          {
+            icon: Users,
+            label: "Groupes",
+            value: content.groupes.map((g) => `${g.nom} (${g.membres} membres)`).join(", "),
+          },
+        ]
+      : []),
+    { icon: Clock, label: "Règles de retard", value: content.reglesDeRetard },
+    { icon: LogOut, label: "Conditions d'entrée/sortie", value: content.conditionsEntreeSortie },
+    { icon: Scale, label: "Procédure de contestation", value: content.procedureContestation },
+    { icon: CheckCircle2, label: "Règles de validation", value: content.reglesValidation },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>Règlement — version {rules.version}</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ScrollText className="h-4 w-4 text-[var(--brand-gold)]" /> Règlement — version{" "}
+            {rules.version}
+          </CardTitle>
           <CardDescription>
             Généré automatiquement au démarrage le{" "}
             {rules.createdAt.toLocaleDateString("fr-FR")}.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-2 text-sm text-stone-700">
-          <p>
-            <strong>Montant de cotisation :</strong> {formatXof(content.montant)}
-            {content.frais > 0 && ` + ${formatXof(content.frais)} de frais`}
-          </p>
-          <p>
-            <strong>Nombre de tours :</strong> {content.nombreDeTours}
-          </p>
-          {content.groupes && content.groupes.length > 0 && (
-            <p>
-              <strong>Groupes :</strong>{" "}
-              {content.groupes.map((g) => `${g.nom} (${g.membres} membres)`).join(", ")}
-            </p>
-          )}
-          <p>
-            <strong>Règles de retard :</strong> {content.reglesDeRetard}
-          </p>
-          <p>
-            <strong>Conditions d&apos;entrée/sortie :</strong> {content.conditionsEntreeSortie}
-          </p>
-          <p>
-            <strong>Procédure de contestation :</strong> {content.procedureContestation}
-          </p>
-          <p>
-            <strong>Règles de validation :</strong> {content.reglesValidation}
-          </p>
+        <CardContent className="flex flex-col gap-3">
+          {items.map(({ icon: Icon, label, value }) => (
+            <div key={label} className="flex gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+              <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand-gold)]" />
+              <div>
+                <p className="text-sm font-semibold text-stone-900">{label}</p>
+                <p className="text-sm text-stone-600">{value}</p>
+              </div>
+            </div>
+          ))}
         </CardContent>
       </Card>
 
       <Card>
         <CardContent className="flex items-center justify-between py-4">
           {myAcceptance ? (
-            <p className="text-sm text-emerald-700">
-              Accepté le {myAcceptance.acceptedAt.toLocaleDateString("fr-FR")}
+            <p className="flex items-center gap-2 text-sm text-emerald-700">
+              <CheckCircle2 className="h-4 w-4" /> Accepté le{" "}
+              {myAcceptance.acceptedAt.toLocaleDateString("fr-FR")}
             </p>
           ) : (
             <>
