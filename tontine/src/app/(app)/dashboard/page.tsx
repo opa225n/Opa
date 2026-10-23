@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Shield } from "lucide-react";
 import { requireUser } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,13 +8,25 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { BrandCornerPattern } from "@/components/brand/pattern";
 import { formatXof } from "@/lib/money";
+import { TONTINE_STATUS_LABELS } from "@/lib/labels";
 
 export default async function DashboardPage() {
   const user = await requireUser();
 
   const memberships = await prisma.tontineMembership.findMany({
     where: { userId: user.id, status: "ACTIVE" },
-    select: { id: true, tontineId: true, tontine: { select: { status: true, name: true } } },
+    select: {
+      id: true,
+      tontineId: true,
+      tontine: {
+        select: {
+          status: true,
+          name: true,
+          contributionAmountXof: true,
+          _count: { select: { memberships: { where: { status: "ACTIVE" } } } },
+        },
+      },
+    },
   });
 
   const tontineIds = memberships.map((m) => m.tontineId);
@@ -68,62 +81,83 @@ export default async function DashboardPage() {
   const featuredTontineId = myDueContributions[0]?.tontineId ?? tontineIds[0];
   const nextDue = myDueContributions[0];
 
-  const [featuredTontine, totalAccumulatedAgg, activeCycle] = featuredTontineId
-    ? await Promise.all([
-        prisma.tontine.findUnique({ where: { id: featuredTontineId }, select: { id: true, name: true } }),
-        prisma.contribution.aggregate({
-          where: { tontineId: featuredTontineId },
-          _sum: { amountConfirmedXof: true },
-        }),
-        prisma.tontineCycle.findFirst({
-          where: { tontineId: featuredTontineId, status: "ACTIVE" },
-          include: { contributions: true },
-        }),
-      ])
-    : [null, null, null];
+  const [featuredTontine, totalAccumulatedAgg, activeCycle, featuredMemberCount, payoutsConfirmedCount] =
+    featuredTontineId
+      ? await Promise.all([
+          prisma.tontine.findUnique({
+            where: { id: featuredTontineId },
+            select: { id: true, name: true, status: true },
+          }),
+          prisma.contribution.aggregate({
+            where: { tontineId: featuredTontineId },
+            _sum: { amountConfirmedXof: true },
+          }),
+          prisma.tontineCycle.findFirst({
+            where: { tontineId: featuredTontineId, status: "ACTIVE" },
+            include: { contributions: true },
+          }),
+          prisma.tontineMembership.count({ where: { tontineId: featuredTontineId, status: "ACTIVE" } }),
+          prisma.payout.count({ where: { tontineId: featuredTontineId, status: "CONFIRMED" } }),
+        ])
+      : [null, null, null, 0, 0];
 
   const totalAccumulatedXof = totalAccumulatedAgg?._sum.amountConfirmedXof ?? 0;
   const cycleExpectedXof = activeCycle?.contributions.reduce((s, c) => s + c.amountExpectedXof, 0) ?? 0;
   const cycleConfirmedXof = activeCycle?.contributions.reduce((s, c) => s + c.amountConfirmedXof, 0) ?? 0;
   const cycleProgressPct = cycleExpectedXof > 0 ? (cycleConfirmedXof / cycleExpectedXof) * 100 : 0;
+  const cycleConfirmedCount = activeCycle?.contributions.filter((c) => c.status === "CONFIRMED").length ?? 0;
+  const cycleMemberCount = activeCycle?.contributions.length ?? 0;
 
   const firstName = (user.name ?? "").trim().split(/\s+/)[0] || "";
 
   return (
     <div className="flex flex-col gap-6">
-      <p className="text-lg text-stone-700">
-        Bonjour{firstName ? ` ${firstName}` : ""} <span aria-hidden="true">👋</span>
-      </p>
+      <div>
+        <p className="text-lg text-stone-700">
+          Bonjour{firstName ? ` ${firstName}` : ""} <span aria-hidden="true">👋</span>
+        </p>
+        <p className="text-sm text-stone-500">Ta tontine, ta force, ta famille.</p>
+      </div>
 
       {featuredTontine ? (
         <div className="relative overflow-hidden rounded-2xl bg-[var(--brand)] p-6 text-[var(--background)] shadow-lg">
           <BrandCornerPattern className="pointer-events-none absolute right-0 top-0 h-28 w-28" />
           <div className="relative flex flex-col gap-5">
+            <div className="flex items-center gap-2">
+              <p className="font-display text-lg font-semibold">{featuredTontine.name}</p>
+              {featuredTontine.status === "ACTIVE" && (
+                <Badge className="border-none bg-emerald-500/20 text-emerald-200">⊙ En cours</Badge>
+              )}
+            </div>
+
             <div>
-              <p className="text-sm text-[var(--background)]/70">{featuredTontine.name}</p>
               <p className="font-display text-3xl font-semibold">{formatXof(totalAccumulatedXof)}</p>
               <p className="text-xs text-[var(--background)]/60">Montant total accumulé</p>
             </div>
 
             {nextDue ? (
               <div className="flex flex-col gap-3 border-t border-[var(--background)]/15 pt-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <p className="text-xs text-[var(--background)]/70">Prochaine cotisation</p>
-                  <p className="text-xl font-semibold">
-                    {formatXof(
-                      Math.max(
-                        nextDue.amountExpectedXof + nextDue.penaltyXof - nextDue.amountConfirmedXof,
-                        0
-                      )
-                    )}
-                  </p>
-                  <p className="text-xs text-[var(--background)]/60">
-                    Le {nextDue.cycle.periodDue.toLocaleDateString("fr-FR")}
-                  </p>
+                <div className="flex gap-6">
+                  <div>
+                    <p className="text-xs text-[var(--background)]/70">Prochaine cotisation</p>
+                    <p className="font-medium">{nextDue.cycle.periodDue.toLocaleDateString("fr-FR")}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[var(--background)]/70">Montant</p>
+                    <p className="text-xl font-semibold">
+                      {formatXof(
+                        Math.max(
+                          nextDue.amountExpectedXof + nextDue.penaltyXof - nextDue.amountConfirmedXof,
+                          0
+                        )
+                      )}
+                    </p>
+                    <p className="text-xs text-[var(--background)]/60">par membre</p>
+                  </div>
                 </div>
                 <Link href={`/tontines/${featuredTontine.id}/cotisations?cycle=${nextDue.cycle.periodIndex}`}>
                   <Button variant="gold" size="lg">
-                    Payer maintenant
+                    💳 Payer maintenant
                   </Button>
                 </Link>
               </div>
@@ -135,9 +169,7 @@ export default async function DashboardPage() {
 
             {activeCycle && cycleExpectedXof > 0 && (
               <div className="flex flex-col gap-1.5">
-                <p className="text-xs text-[var(--background)]/70">
-                  Progression de la cagnotte (tour en cours)
-                </p>
+                <p className="text-xs text-[var(--background)]/70">Progression de la cagnotte</p>
                 <Progress value={cycleProgressPct} />
               </div>
             )}
@@ -153,6 +185,83 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {featuredTontine && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Card>
+            <CardContent className="py-4 text-center">
+              <p className="text-xl font-semibold text-[var(--foreground)]">{featuredMemberCount}</p>
+              <p className="text-xs text-stone-500">Membres</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-4 text-center">
+              <p className="text-xl font-semibold text-[var(--foreground)]">
+                {formatXof(totalAccumulatedXof)}
+              </p>
+              <p className="text-xs text-stone-500">Total collecté</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-4 text-center">
+              <p className="text-xl font-semibold text-[var(--foreground)]">
+                {cycleConfirmedCount}/{cycleMemberCount}
+              </p>
+              <p className="text-xs text-stone-500">Cotisations</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="py-4 text-center">
+              <p className="text-xl font-semibold text-[var(--foreground)]">{payoutsConfirmedCount}</p>
+              <p className="text-xs text-stone-500">Tirage effectué</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Mes tontines</CardTitle>
+          <Link href="/tontines" className="text-sm font-medium text-brand hover:underline">
+            Voir toutes
+          </Link>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-2">
+          {memberships.length === 0 && (
+            <p className="text-sm text-stone-500">Vous n&apos;avez pas encore de tontine.</p>
+          )}
+          {memberships.slice(0, 5).map((m) => (
+            <Link
+              key={m.id}
+              href={`/tontines/${m.tontineId}`}
+              className="flex items-center justify-between rounded-lg border border-stone-200 px-3 py-2 text-sm hover:bg-stone-50"
+            >
+              <div>
+                <p className="font-medium text-stone-900">{m.tontine.name}</p>
+                <p className="text-xs text-stone-500">
+                  {m.tontine._count.memberships} membres
+                  {m.tontine.contributionAmountXof
+                    ? ` • ${formatXof(m.tontine.contributionAmountXof)}`
+                    : ""}
+                </p>
+              </div>
+              <Badge variant={m.tontine.status === "ACTIVE" ? "default" : "neutral"}>
+                {m.tontine.status === "ACTIVE" ? "En cours" : TONTINE_STATUS_LABELS[m.tontine.status]}
+              </Badge>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card className="border-brand-gold/30 bg-brand-gold/5">
+        <CardContent className="flex items-center gap-3 py-4">
+          <Shield className="h-6 w-6 shrink-0 text-brand-gold" />
+          <div>
+            <p className="text-sm font-medium text-stone-900">Paiements sécurisés</p>
+            <p className="text-xs text-stone-500">Vos transactions sont protégées et confidentielles.</p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div>
         <h2 className="font-display text-xl font-semibold text-[var(--foreground)]">
