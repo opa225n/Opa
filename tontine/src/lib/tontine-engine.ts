@@ -61,8 +61,11 @@ export async function recomputeContribution(contributionId: string) {
   const confirmed = payments.reduce((sum, p) => sum + p.amountXof, 0);
   const contribution = await prisma.contribution.findUniqueOrThrow({ where: { id: contributionId } });
 
+  // Le total dû inclut l'éventuelle pénalité de retard déjà appliquée (cf. applyLatePenaltiesAction) :
+  // un membre en retard doit régler cotisation + pénalité pour que sa cotisation soit confirmée.
+  const totalDue = contribution.amountExpectedXof + contribution.penaltyXof;
   let status: RecomputedContributionStatus = "DUE";
-  if (confirmed >= contribution.amountExpectedXof && confirmed > 0) status = "CONFIRMED";
+  if (confirmed >= totalDue && confirmed > 0) status = "CONFIRMED";
   else if (confirmed > 0) status = "PARTIAL";
 
   await prisma.contribution.update({

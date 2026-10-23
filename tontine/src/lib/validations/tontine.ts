@@ -10,6 +10,8 @@ export const createTontineSchema = z.object({
   frequency: z.enum(["DAILY", "WEEKLY", "MONTHLY"]),
   startDate: z.coerce.date(),
   feeAmountXof: z.coerce.number().int().min(0).default(0),
+  latePenaltyAmountXof: z.coerce.number().int().min(0).default(0),
+  latePenaltyGraceDays: z.coerce.number().int().min(0).default(0),
 });
 
 export type CreateTontineInput = z.infer<typeof createTontineSchema>;

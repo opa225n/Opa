@@ -41,6 +41,8 @@ export async function createTontineAction(input: unknown): Promise<ActionResult<
       status: "DRAFT",
       contributionAmountXof: data.contributionAmountXof,
       feeAmountXof: data.feeAmountXof,
+      latePenaltyAmountXof: data.latePenaltyAmountXof,
+      latePenaltyGraceDays: data.latePenaltyGraceDays,
       frequency: data.frequency,
       startDate: data.startDate,
       createdById: user.id,
@@ -150,7 +152,10 @@ export async function startTontineAction(tontineId: string): Promise<ActionResul
     nombreDeTours: plan.length,
     ordreDesBeneficiaires: orderedIds,
     dateDemarrage: tontine.startDate,
-    reglesDeRetard: "Un membre en retard reste dû tant que le paiement n'est pas confirmé.",
+    reglesDeRetard:
+      tontine.latePenaltyAmountXof > 0
+        ? `Un membre en retard reste dû tant que le paiement n'est pas confirmé. Passé un délai de grâce de ${tontine.latePenaltyGraceDays} jour(s) après l'échéance, une pénalité de ${tontine.latePenaltyAmountXof} FCFA s'ajoute au montant dû.`
+        : "Un membre en retard reste dû tant que le paiement n'est pas confirmé.",
     conditionsEntreeSortie: "Un membre ne peut quitter la tontine qu'avec l'accord du responsable.",
     procedureContestation: "Toute contestation est à signaler via la page Opérations de la tontine.",
     reglesValidation: "Les paiements et versements sont confirmés par le responsable ou le trésorier.",
@@ -445,6 +450,50 @@ export async function updateMemberBrasAction(
 // ---------------------------------------------------------------------------
 // Cotisations et paiements
 // ---------------------------------------------------------------------------
+
+export async function applyLatePenaltiesAction(
+  tontineId: string
+): Promise<ActionResult<{ count: number }>> {
+  const { user } = await requireMembership(tontineId, ["RESPONSABLE", "TRESORIER"]);
+
+  const tontine = await prisma.tontine.findUniqueOrThrow({ where: { id: tontineId } });
+  if (tontine.latePenaltyAmountXof <= 0) {
+    return fail("Aucune pénalité de retard n'est configurée pour cette tontine.");
+  }
+
+  const cutoff = new Date(Date.now() - tontine.latePenaltyGraceDays * 24 * 60 * 60 * 1000);
+
+  // Cotisations non confirmées, sans pénalité déjà appliquée, dont le délai de grâce après
+  // l'échéance du tour est dépassé.
+  const overdue = await prisma.contribution.findMany({
+    where: {
+      tontineId,
+      status: { in: ["DUE", "PARTIAL"] },
+      penaltyXof: 0,
+      cycle: { periodDue: { lte: cutoff } },
+    },
+    select: { id: true },
+  });
+
+  if (overdue.length > 0) {
+    await prisma.contribution.updateMany({
+      where: { id: { in: overdue.map((c) => c.id) } },
+      data: { penaltyXof: tontine.latePenaltyAmountXof, penaltyAppliedAt: new Date() },
+    });
+  }
+
+  await writeAuditLog({
+    tontineId,
+    userId: user.id,
+    action: "tontine.apply_late_penalties",
+    entityType: "Tontine",
+    entityId: tontineId,
+    metadata: { count: overdue.length, amountXof: tontine.latePenaltyAmountXof },
+  });
+
+  revalidatePath(`/tontines/${tontineId}/cotisations`);
+  return { ok: true, data: { count: overdue.length } };
+}
 
 export async function recordPaymentAction(
   input: unknown,

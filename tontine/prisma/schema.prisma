@@ -172,6 +172,11 @@ model Tontine {
   startDate                DateTime?
   feeAmountXof             Int       @default(0) // frais éventuels par cotisation
 
+  // Pénalité de retard : appliquée à une cotisation encore DUE/PARTIAL une fois son échéance
+  // dépassée de latePenaltyGraceDays. 0 = désactivée. Déclenchement manuel (pas de tâche planifiée).
+  latePenaltyAmountXof Int @default(0)
+  latePenaltyGraceDays Int @default(0)
+
   // Modules optionnels
   loansEnabled        Boolean @default(false) // caisse + prêts internes
   loanInterestAllowed Boolean @default(false) // doit être activé explicitement par le groupe
@@ -377,6 +382,8 @@ model Contribution {
   membership         TontineMembership  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   amountExpectedXof  Int
   amountConfirmedXof Int                @default(0) // somme des paiements CONFIRMED
+  penaltyXof         Int                @default(0) // pénalité de retard appliquée, en sus de amountExpectedXof
+  penaltyAppliedAt   DateTime?
   status             ContributionStatus @default(DUE)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt

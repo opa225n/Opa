@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatXof } from "@/lib/money";
 import { CONTRIBUTION_STATUS_LABELS } from "@/lib/labels";
 import { PaymentManager } from "./payment-manager";
+import { ApplyPenaltiesButton } from "./apply-penalties-button";
 
 export default async function ContributionsPage({
   params,
@@ -52,6 +53,10 @@ export default async function ContributionsPage({
 
   return (
     <div className="flex flex-col gap-4">
+      {canManage && tontine.latePenaltyAmountXof > 0 && (
+        <ApplyPenaltiesButton tontineId={id} />
+      )}
+
       <div className="flex gap-2 overflow-x-auto">
         {cycles.map((c) => (
           <a
@@ -70,12 +75,16 @@ export default async function ContributionsPage({
 
       <div className="flex flex-col gap-3">
         {contributions.map((c) => {
-          const remaining = Math.max(c.amountExpectedXof - c.amountConfirmedXof, 0);
+          const totalDueXof = c.amountExpectedXof + c.penaltyXof;
+          const remaining = Math.max(totalDueXof - c.amountConfirmedXof, 0);
           return (
             <Card key={c.id} data-testid={`contribution-card-${c.membershipId}`}>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle>{c.membership.user.fullName}</CardTitle>
                 <div className="flex items-center gap-2">
+                  {c.penaltyXof > 0 && (
+                    <Badge variant="destructive">+{formatXof(c.penaltyXof)} pénalité</Badge>
+                  )}
                   <Badge
                     variant={
                       c.status === "CONFIRMED"
@@ -90,7 +99,7 @@ export default async function ContributionsPage({
                     {CONTRIBUTION_STATUS_LABELS[c.status]}
                   </Badge>
                   <span className="text-sm text-stone-500">
-                    {formatXof(c.amountConfirmedXof)} / {formatXof(c.amountExpectedXof)}
+                    {formatXof(c.amountConfirmedXof)} / {formatXof(totalDueXof)}
                   </span>
                 </div>
               </CardHeader>

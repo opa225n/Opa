@@ -32,6 +32,8 @@ export function CreateTontineForm() {
     defaultValues: {
       frequency: "WEEKLY",
       feeAmountXof: 0,
+      latePenaltyAmountXof: 0,
+      latePenaltyGraceDays: 0,
       startDate: defaultStartDate as unknown as Date,
     },
   });
@@ -97,6 +99,27 @@ export function CreateTontineForm() {
           <Label htmlFor="startDate">Date de démarrage</Label>
           <Input id="startDate" type="date" {...register("startDate")} />
           {errors.startDate && <p className="text-sm text-red-600">{errors.startDate.message}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="latePenaltyAmountXof">Pénalité de retard (FCFA, 0 = désactivée)</Label>
+          <Input
+            id="latePenaltyAmountXof"
+            type="number"
+            min={0}
+            {...register("latePenaltyAmountXof")}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="latePenaltyGraceDays">Délai de grâce (jours)</Label>
+          <Input
+            id="latePenaltyGraceDays"
+            type="number"
+            min={0}
+            {...register("latePenaltyGraceDays")}
+          />
         </div>
       </div>
 
