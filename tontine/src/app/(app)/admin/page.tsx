@@ -60,18 +60,22 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card accent>
-          <CardHeader className="pb-2">
-            <CardDescription>Utilisateurs</CardDescription>
-            <CardTitle className="text-3xl">{userCount}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card accent>
-          <CardHeader className="pb-2">
-            <CardDescription>Tontines</CardDescription>
-            <CardTitle className="text-3xl">{tontineCount}</CardTitle>
-          </CardHeader>
-        </Card>
+        <Link href="#utilisateurs" className="block">
+          <Card accent className="transition-shadow hover:shadow-md">
+            <CardHeader className="pb-2">
+              <CardDescription>Utilisateurs</CardDescription>
+              <CardTitle className="text-3xl">{userCount}</CardTitle>
+            </CardHeader>
+          </Card>
+        </Link>
+        <Link href="#tontines" className="block">
+          <Card accent className="transition-shadow hover:shadow-md">
+            <CardHeader className="pb-2">
+              <CardDescription>Tontines</CardDescription>
+              <CardTitle className="text-3xl">{tontineCount}</CardTitle>
+            </CardHeader>
+          </Card>
+        </Link>
         <Card accent>
           <CardHeader className="pb-2">
             <CardDescription>Tontines actives</CardDescription>
@@ -86,7 +90,7 @@ export default async function AdminOverviewPage() {
         </Card>
       </div>
 
-      <Card>
+      <Card id="tontines" className="scroll-mt-20">
         <CardHeader>
           <CardTitle>Tontines ({tontineCount})</CardTitle>
           <CardDescription>Les 50 plus récentes.</CardDescription>
@@ -139,7 +143,7 @@ export default async function AdminOverviewPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="utilisateurs" className="scroll-mt-20">
         <CardHeader>
           <CardTitle>Utilisateurs ({userCount})</CardTitle>
           <CardDescription>Les 50 plus récents.</CardDescription>
