@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { InviteForm } from "./invite-form";
 import { AddManagedMemberForm } from "./add-managed-member-form";
+import { ImportMembersForm } from "./import-members-form";
 import { MemberOrderList } from "./member-order-list";
 import { GroupsManager } from "./groups-manager";
 import { revokeInvitationAction } from "@/app/actions/tontines";
@@ -92,8 +93,11 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
               paiements (il ne peut pas se connecter lui-même).
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex flex-col gap-4">
             <AddManagedMemberForm tontineId={id} />
+            <div className="border-t border-stone-100 pt-3">
+              <ImportMembersForm tontineId={id} />
+            </div>
           </CardContent>
         </Card>
       )}

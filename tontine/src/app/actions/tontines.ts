@@ -526,6 +526,74 @@ export async function addManagedMemberAction(
   return { ok: true, data: { membershipId: membership.id } };
 }
 
+const MAX_IMPORTED_MEMBERS = 100;
+
+export async function importManagedMembersAction(
+  tontineId: string,
+  fullNames: string[]
+): Promise<ActionResult<{ createdCount: number }>> {
+  const names = fullNames.map((n) => n.trim()).filter((n) => n.length >= 2);
+  if (names.length === 0) {
+    return fail("Aucun nom valide à importer (2 caractères minimum).");
+  }
+  if (names.length > MAX_IMPORTED_MEMBERS) {
+    return fail(`Trop de membres à la fois (maximum ${MAX_IMPORTED_MEMBERS} par import).`);
+  }
+
+  const { user: actor } = await requireMembership(tontineId, ["RESPONSABLE", "SECRETAIRE"]);
+
+  const maxOrder = await prisma.tontineMembership.aggregate({
+    where: { tontineId },
+    _max: { displayOrder: true },
+  });
+  let nextOrder = (maxOrder._max.displayOrder ?? 0) + 1;
+
+  const createdCount = await prisma.$transaction(async (tx) => {
+    let count = 0;
+    for (const name of names) {
+      // Mot de passe aléatoire inutilisable, même garde que addManagedMemberAction.
+      const passwordHash = await bcrypt.hash(`${randomUUID()}:${randomUUID()}`, 12);
+      const managedUser = await tx.user.create({
+        data: {
+          fullName: name,
+          phone: `managed:${randomUUID()}`,
+          passwordHash,
+          countryCode: "CI",
+          phoneVerified: true,
+          isManaged: true,
+          managedByUserId: actor.id,
+          termsAcceptedAt: new Date(),
+          profile: { create: {} },
+        },
+      });
+      await tx.tontineMembership.create({
+        data: {
+          tontineId,
+          userId: managedUser.id,
+          role: "MEMBRE",
+          status: "ACTIVE",
+          displayOrder: nextOrder,
+        },
+      });
+      nextOrder += 1;
+      count += 1;
+    }
+    return count;
+  });
+
+  await writeAuditLog({
+    tontineId,
+    userId: actor.id,
+    action: "member.import_managed",
+    entityType: "TontineMembership",
+    entityId: tontineId,
+    metadata: { createdCount },
+  });
+
+  revalidatePath(`/tontines/${tontineId}/membres`);
+  return { ok: true, data: { createdCount } };
+}
+
 export async function revokeInvitationAction(invitationId: string): Promise<ActionResult> {
   const invitation = await prisma.invitation.findUniqueOrThrow({ where: { id: invitationId } });
   const { user } = await requireMembership(invitation.tontineId, ["RESPONSABLE", "SECRETAIRE"]);

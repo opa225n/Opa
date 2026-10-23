@@ -1,0 +1,112 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Upload, X } from "lucide-react";
+import { importManagedMembersAction } from "@/app/actions/tontines";
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
+import { extractNamesFromCsv } from "@/lib/csv";
+
+export function ImportMembersForm({ tontineId }: { tontineId: string }) {
+  const router = useRouter();
+  const [names, setNames] = useState<string[]>([]);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setError(null);
+    setSuccess(null);
+
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setError("Seuls les fichiers .csv sont acceptés (depuis Excel : Fichier > Enregistrer sous > CSV).");
+      return;
+    }
+
+    const text = await file.text();
+    const extracted = extractNamesFromCsv(text);
+    if (extracted.length === 0) {
+      setError("Aucun nom trouvé dans ce fichier.");
+      return;
+    }
+    setFileName(file.name);
+    setNames(extracted);
+  }
+
+  function removeName(index: number) {
+    setNames((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function cancel() {
+    setNames([]);
+    setFileName(null);
+    setError(null);
+  }
+
+  async function confirmImport() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await importManagedMembersAction(tontineId, names);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      setSuccess(`${result.data.createdCount} membre(s) importé(s).`);
+      setNames([]);
+      setFileName(null);
+      router.refresh();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (names.length === 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        {error && <Alert variant="destructive">{error}</Alert>}
+        {success && <Alert variant="success">{success}</Alert>}
+        <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-50">
+          <Upload className="h-4 w-4 text-[var(--brand-gold)]" />
+          Importer une liste (.csv)
+          <input type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
+        </label>
+        <p className="text-xs text-stone-400">
+          Une colonne avec les noms (en-tête &laquo;&nbsp;Nom&nbsp;&raquo; ou 1re colonne).
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-stone-200 p-3">
+      <p className="text-sm font-medium text-stone-900">
+        {fileName} — {names.length} membre(s) à importer
+      </p>
+      {error && <Alert variant="destructive">{error}</Alert>}
+      <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
+        {names.map((name, i) => (
+          <div key={i} className="flex items-center justify-between rounded-md bg-stone-50 px-2 py-1 text-sm">
+            <span>{name}</span>
+            <button type="button" onClick={() => removeName(i)} aria-label={`Retirer ${name}`}>
+              <X className="h-3.5 w-3.5 text-stone-400 hover:text-red-600" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <Button size="sm" disabled={submitting || names.length === 0} onClick={confirmImport}>
+          {submitting ? "Import..." : `Importer ${names.length} membre(s)`}
+        </Button>
+        <Button size="sm" variant="ghost" onClick={cancel} disabled={submitting}>
+          Annuler
+        </Button>
+      </div>
+    </div>
+  );
+}
