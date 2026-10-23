@@ -94,6 +94,9 @@ model UserProfile {
   address   String?
   city      String?
   bio       String?
+  // Numéro de contact informatif pour un membre "sans compte" (isManaged) : jamais utilisé pour
+  // se connecter, juste affiché au responsable pour pouvoir le joindre.
+  contactPhone String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

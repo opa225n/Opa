@@ -470,12 +470,14 @@ export async function inviteMemberAction(
 
 export async function addManagedMemberAction(
   tontineId: string,
-  fullName: string
+  fullName: string,
+  contactPhone?: string
 ): Promise<ActionResult<{ membershipId: string }>> {
   const name = fullName.trim();
   if (name.length < 2) {
     return fail("Le nom doit contenir au moins 2 caractères.");
   }
+  const trimmedContactPhone = contactPhone?.trim() || undefined;
 
   const { user: actor } = await requireMembership(tontineId, ["RESPONSABLE", "SECRETAIRE"]);
 
@@ -498,7 +500,7 @@ export async function addManagedMemberAction(
         isManaged: true,
         managedByUserId: actor.id,
         termsAcceptedAt: new Date(),
-        profile: { create: {} },
+        profile: { create: { contactPhone: trimmedContactPhone } },
       },
     });
 
@@ -528,15 +530,22 @@ export async function addManagedMemberAction(
 
 const MAX_IMPORTED_MEMBERS = 100;
 
+export interface ImportedMemberRow {
+  fullName: string;
+  contactPhone?: string;
+}
+
 export async function importManagedMembersAction(
   tontineId: string,
-  fullNames: string[]
+  rows: ImportedMemberRow[]
 ): Promise<ActionResult<{ createdCount: number }>> {
-  const names = fullNames.map((n) => n.trim()).filter((n) => n.length >= 2);
-  if (names.length === 0) {
+  const members = rows
+    .map((r) => ({ fullName: r.fullName.trim(), contactPhone: r.contactPhone?.trim() || undefined }))
+    .filter((r) => r.fullName.length >= 2);
+  if (members.length === 0) {
     return fail("Aucun nom valide à importer (2 caractères minimum).");
   }
-  if (names.length > MAX_IMPORTED_MEMBERS) {
+  if (members.length > MAX_IMPORTED_MEMBERS) {
     return fail(`Trop de membres à la fois (maximum ${MAX_IMPORTED_MEMBERS} par import).`);
   }
 
@@ -550,7 +559,7 @@ export async function importManagedMembersAction(
 
   const createdCount = await prisma.$transaction(async (tx) => {
     let count = 0;
-    for (const name of names) {
+    for (const { fullName: name, contactPhone } of members) {
       // Mot de passe aléatoire inutilisable, même garde que addManagedMemberAction.
       const passwordHash = await bcrypt.hash(`${randomUUID()}:${randomUUID()}`, 12);
       const managedUser = await tx.user.create({
@@ -563,7 +572,7 @@ export async function importManagedMembersAction(
           isManaged: true,
           managedByUserId: actor.id,
           termsAcceptedAt: new Date(),
-          profile: { create: {} },
+          profile: { create: { contactPhone } },
         },
       });
       await tx.tontineMembership.create({

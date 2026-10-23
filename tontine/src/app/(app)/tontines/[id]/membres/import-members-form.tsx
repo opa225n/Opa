@@ -6,11 +6,11 @@ import { Upload, X } from "lucide-react";
 import { importManagedMembersAction } from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { extractNamesFromCsv } from "@/lib/csv";
+import { extractMembersFromCsv, type ImportedMemberRow } from "@/lib/csv";
 
 export function ImportMembersForm({ tontineId }: { tontineId: string }) {
   const router = useRouter();
-  const [names, setNames] = useState<string[]>([]);
+  const [rows, setRows] = useState<ImportedMemberRow[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -29,21 +29,21 @@ export function ImportMembersForm({ tontineId }: { tontineId: string }) {
     }
 
     const text = await file.text();
-    const extracted = extractNamesFromCsv(text);
+    const extracted = extractMembersFromCsv(text);
     if (extracted.length === 0) {
       setError("Aucun nom trouvé dans ce fichier.");
       return;
     }
     setFileName(file.name);
-    setNames(extracted);
+    setRows(extracted);
   }
 
-  function removeName(index: number) {
-    setNames((prev) => prev.filter((_, i) => i !== index));
+  function removeRow(index: number) {
+    setRows((prev) => prev.filter((_, i) => i !== index));
   }
 
   function cancel() {
-    setNames([]);
+    setRows([]);
     setFileName(null);
     setError(null);
   }
@@ -52,13 +52,13 @@ export function ImportMembersForm({ tontineId }: { tontineId: string }) {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await importManagedMembersAction(tontineId, names);
+      const result = await importManagedMembersAction(tontineId, rows);
       if (!result.ok) {
         setError(result.error);
         return;
       }
       setSuccess(`${result.data.createdCount} membre(s) importé(s).`);
-      setNames([]);
+      setRows([]);
       setFileName(null);
       router.refresh();
     } finally {
@@ -66,7 +66,7 @@ export function ImportMembersForm({ tontineId }: { tontineId: string }) {
     }
   }
 
-  if (names.length === 0) {
+  if (rows.length === 0) {
     return (
       <div className="flex flex-col gap-2">
         {error && <Alert variant="destructive">{error}</Alert>}
@@ -77,7 +77,8 @@ export function ImportMembersForm({ tontineId }: { tontineId: string }) {
           <input type="file" accept=".csv" className="hidden" onChange={handleFileChange} />
         </label>
         <p className="text-xs text-stone-400">
-          Une colonne avec les noms (en-tête &laquo;&nbsp;Nom&nbsp;&raquo; ou 1re colonne).
+          Colonnes &laquo;&nbsp;Nom&nbsp;&raquo; (ou 1re colonne) et &laquo;&nbsp;Téléphone&nbsp;&raquo;
+          (facultative, simple info de contact — jamais utilisée pour se connecter).
         </p>
       </div>
     );
@@ -86,22 +87,25 @@ export function ImportMembersForm({ tontineId }: { tontineId: string }) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-stone-200 p-3">
       <p className="text-sm font-medium text-stone-900">
-        {fileName} — {names.length} membre(s) à importer
+        {fileName} — {rows.length} membre(s) à importer
       </p>
       {error && <Alert variant="destructive">{error}</Alert>}
       <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
-        {names.map((name, i) => (
+        {rows.map((row, i) => (
           <div key={i} className="flex items-center justify-between rounded-md bg-stone-50 px-2 py-1 text-sm">
-            <span>{name}</span>
-            <button type="button" onClick={() => removeName(i)} aria-label={`Retirer ${name}`}>
+            <span>
+              {row.fullName}
+              {row.contactPhone && <span className="text-stone-400"> · {row.contactPhone}</span>}
+            </span>
+            <button type="button" onClick={() => removeRow(i)} aria-label={`Retirer ${row.fullName}`}>
               <X className="h-3.5 w-3.5 text-stone-400 hover:text-red-600" />
             </button>
           </div>
         ))}
       </div>
       <div className="flex gap-2">
-        <Button size="sm" disabled={submitting || names.length === 0} onClick={confirmImport}>
-          {submitting ? "Import..." : `Importer ${names.length} membre(s)`}
+        <Button size="sm" disabled={submitting || rows.length === 0} onClick={confirmImport}>
+          {submitting ? "Import..." : `Importer ${rows.length} membre(s)`}
         </Button>
         <Button size="sm" variant="ghost" onClick={cancel} disabled={submitting}>
           Annuler

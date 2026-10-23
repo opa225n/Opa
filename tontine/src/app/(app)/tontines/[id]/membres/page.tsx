@@ -26,7 +26,7 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
   const [memberships, groups, invitations, appUrl] = await Promise.all([
     prisma.tontineMembership.findMany({
       where: { tontineId: id, status: "ACTIVE" },
-      include: { user: true },
+      include: { user: { include: { profile: true } } },
       orderBy: { displayOrder: "asc" },
     }),
     prisma.tontineGroup.findMany({
@@ -53,6 +53,7 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
     isSelf: m.userId === user.id,
     bras: m.bras,
     isManaged: m.user.isManaged,
+    contactPhone: m.user.profile?.contactPhone ?? null,
     groupId: m.groupId,
   });
 

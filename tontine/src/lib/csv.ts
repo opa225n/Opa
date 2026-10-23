@@ -56,17 +56,33 @@ export function parseCsv(text: string): string[][] {
 }
 
 const NAME_HEADER_CANDIDATES = ["nom", "name", "nom complet", "membre", "full name", "fullname"];
+const PHONE_HEADER_CANDIDATES = ["téléphone", "telephone", "tel", "tél", "phone", "numero", "numéro", "contact"];
 
-/** Extrait une colonne "nom" d'une table CSV : détecte l'en-tête si présent, sinon prend la 1re colonne. */
-export function extractNamesFromCsv(text: string): string[] {
+export interface ImportedMemberRow {
+  fullName: string;
+  contactPhone?: string;
+}
+
+/**
+ * Extrait les membres (nom + téléphone facultatif) d'une table CSV : détecte les en-têtes
+ * "Nom" et "Téléphone" si présents (nom retombe sur la 1re colonne sinon ; téléphone est absent
+ * sans en-tête reconnu, trop ambigu à deviner par position).
+ */
+export function extractMembersFromCsv(text: string): ImportedMemberRow[] {
   const rows = parseCsv(text).map((r) => r.map((f) => f.trim()));
   if (rows.length === 0) return [];
 
   const firstRow = rows[0].map((f) => f.toLowerCase());
-  const headerIndex = firstRow.findIndex((f) => NAME_HEADER_CANDIDATES.includes(f));
-  const hasHeader = headerIndex !== -1;
-  const nameColumn = hasHeader ? headerIndex : 0;
+  const nameHeaderIndex = firstRow.findIndex((f) => NAME_HEADER_CANDIDATES.includes(f));
+  const phoneHeaderIndex = firstRow.findIndex((f) => PHONE_HEADER_CANDIDATES.includes(f));
+  const hasHeader = nameHeaderIndex !== -1 || phoneHeaderIndex !== -1;
+  const nameColumn = nameHeaderIndex !== -1 ? nameHeaderIndex : 0;
   const dataRows = hasHeader ? rows.slice(1) : rows;
 
-  return dataRows.map((r) => r[nameColumn] ?? "").filter((n) => n.length > 0);
+  return dataRows
+    .map((r) => ({
+      fullName: r[nameColumn] ?? "",
+      contactPhone: phoneHeaderIndex !== -1 ? r[phoneHeaderIndex] || undefined : undefined,
+    }))
+    .filter((m) => m.fullName.length > 0);
 }

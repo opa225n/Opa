@@ -20,6 +20,7 @@ export interface MemberRow {
   isSelf: boolean;
   bras: number;
   isManaged: boolean;
+  contactPhone: string | null;
   groupId: string | null;
 }
 
@@ -111,7 +112,9 @@ export function MemberOrderList({
                   {m.fullName} {m.isSelf && <span className="text-stone-400">(vous)</span>}
                 </p>
                 <p className="text-xs text-stone-500">
-                  {m.isManaged ? "Géré par vous — sans compte" : m.phone}
+                  {m.isManaged
+                    ? `Géré par vous — sans compte${m.contactPhone ? ` · ${m.contactPhone}` : ""}`
+                    : m.phone}
                 </p>
               </div>
               <Badge variant="outline">{MEMBER_ROLE_LABELS[m.role]}</Badge>
