@@ -1,21 +1,15 @@
-// Points le long de la bordure courbe (quadratique, de (200,185) à (18,0) via (120,70)),
-// pour un éventail de traits qui converge exactement sur le bord plutôt que dans le vide.
-const FAN_POINTS: Array<[number, number]> = [
-  [183.8, 162.5],
-  [167.1, 140.8],
-  [150.0, 120.1],
-  [132.5, 100.2],
-  [114.5, 81.3],
-  [96.1, 63.2],
-  [77.2, 46.1],
-  [57.9, 29.8],
-  [38.2, 14.5],
-];
+// Silhouette "flamme/pétale" partant du coin (200,0) : bord extérieur convexe jusqu'en bas à
+// gauche, bord intérieur qui revient en S (taille pincée) — plus organique qu'un simple
+// triangle ou arc unique.
+const PETAL_PATH =
+  "M200 0 C198 55 172 105 128 142 C98 167 55 183 0 192 C58 175 112 145 148 97 C176 60 194 27 200 0 Z";
+// Juste le bord extérieur, pour le filet or qui le souligne.
+const PETAL_OUTER_EDGE = "M200 0 C198 55 172 105 128 142 C98 167 55 183 0 192";
 
-// Voile de coin : silhouette courbe (pas un simple triangle) en dégradé prune, bordée d'un
-// filet or, avec un éventail de fins traits or qui convergent sur le bord — inspiré des
-// motifs textiles ouest-africains, en écho discret au symbole "Nœud de Confiance". À poser
-// aux coins opposés d'une page claire (inscription, connexion...), toujours aria-hidden.
+// Voile de coin : silhouette en flamme/pétale, dégradé prune, filet or le long du bord
+// extérieur, et un semis de petits losanges emboîtés en deux tons terracotta/or à l'intérieur
+// — inspiré des motifs géométriques textiles ouest-africains plutôt qu'un simple dégradé. À
+// poser aux coins opposés d'une page claire (inscription, connexion...), toujours aria-hidden.
 // "top-right" : coin en haut à droite ; "bottom-left" : même forme retournée à 180°.
 export function BrandCornerFlourish({
   corner,
@@ -26,7 +20,7 @@ export function BrandCornerFlourish({
 }) {
   const clipId = `brand-corner-flourish-clip-${corner}`;
   const gradientId = `brand-corner-flourish-gradient-${corner}`;
-  const edgePath = "M200 0 L200 185 Q120 70 18 0 Z";
+  const patternId = `brand-corner-flourish-pattern-${corner}`;
 
   return (
     <svg
@@ -36,38 +30,38 @@ export function BrandCornerFlourish({
       style={corner === "bottom-left" ? { transform: "rotate(180deg)" } : undefined}
     >
       <defs>
-        <linearGradient id={gradientId} x1="200" y1="0" x2="40" y2="180" gradientUnits="userSpaceOnUse">
+        <linearGradient id={gradientId} x1="200" y1="0" x2="20" y2="180" gradientUnits="userSpaceOnUse">
           <stop offset="0%" stopColor="var(--brand)" />
           <stop offset="100%" stopColor="var(--brand-soft)" />
         </linearGradient>
         <clipPath id={clipId}>
-          <path d={edgePath} />
+          <path d={PETAL_PATH} />
         </clipPath>
+        <pattern
+          id={patternId}
+          width="26"
+          height="26"
+          patternUnits="userSpaceOnUse"
+          patternTransform="rotate(20)"
+        >
+          <path d="M13 1 L24 13 L13 25 L2 13 Z" fill="#c2694a" opacity="0.4" />
+          <path d="M13 7 L19 13 L13 19 L7 13 Z" fill="var(--brand-gold)" opacity="0.5" />
+        </pattern>
       </defs>
 
-      <path d={edgePath} fill={`url(#${gradientId})`} />
+      <path d={PETAL_PATH} fill={`url(#${gradientId})`} />
 
       <g clipPath={`url(#${clipId})`}>
-        {FAN_POINTS.map(([x, y], i) => (
-          <line
-            key={i}
-            x1="200"
-            y1="0"
-            x2={x}
-            y2={y}
-            stroke="var(--brand-gold)"
-            strokeWidth="1"
-            opacity={0.6 - (i / (FAN_POINTS.length - 1)) * 0.4}
-          />
-        ))}
+        <rect x="0" y="0" width="200" height="200" fill={`url(#${patternId})`} />
       </g>
 
       <path
-        d="M200 185 Q120 70 18 0"
+        d={PETAL_OUTER_EDGE}
         fill="none"
         stroke="var(--brand-gold)"
-        strokeWidth="1.5"
-        opacity="0.5"
+        strokeWidth="5"
+        strokeLinecap="round"
+        opacity="0.85"
       />
     </svg>
   );
