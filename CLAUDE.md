@@ -6,25 +6,20 @@
 **Branch:** claude/tontine-ci-app
 
 **Recent commits:**
-- b1d44db Make admin overview stat cards clickable
-- 0fbe5c3 Revert iPhone icon to the rounded-square design per user preference
-- 104b3d6 Fix iPhone home screen icon to a full-bleed square
-- 86ed6b1 Make the site installable as a PWA
-- 614beb7 Remove one-time grandfather script now that it has run in prod
+- 6ca9a28 Make the sign-up page the actual homepage, drop the marketing landing page
+- 697aabb Give the profile page the same visual treatment as the rest of the app
+- 7be3a26 Cache-bust the PWA manifest link so reinstalled icons pick up the new start_url
+- 9a60368 Point the PWA start_url at /inscription
+- 9c84c5d Add month-grid view to the global calendar, matching the mockup
 
-**In-progress files (7):**
-- .claude/CLAUDE.md
-- .claude/settings.json
-- .claudeignore
-- CLAUDE.md
-- tontine/.claude/CLAUDE.md
-- tontine/.claude/settings.json
-- tontine/.claudeignore
+**In-progress files (2):**
+- tontine/src/app/(app)/tontines/[id]/operations/page.tsx
+- tontine/src/app/(app)/tontines/[id]/reglement/page.tsx
 
 **Project reminders:**
 - Verify the file content before claiming an edit is done
 - Run tests before declaring task complete
 - Re-read CLAUDE.md if you're unsure of project conventions
 
-**Hook generated:** 2026-10-23 08:55:20 UTC
+**Hook generated:** 2026-10-23 12:35:29 UTC
 <!-- post-compact-recovery-end -->
