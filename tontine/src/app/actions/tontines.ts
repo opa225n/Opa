@@ -46,6 +46,7 @@ export async function createTontineAction(input: unknown): Promise<ActionResult<
       latePenaltyAmountXof: data.latePenaltyAmountXof,
       latePenaltyGraceDays: data.latePenaltyGraceDays,
       frequency: data.frequency,
+      customWeekdays: data.customWeekdays,
       startDate: data.startDate,
       createdById: user.id,
       memberships: {
@@ -129,9 +130,17 @@ export async function startTontineAction(tontineId: string): Promise<ActionResul
   if (!tontine.contributionAmountXof || !tontine.startDate) {
     return fail("Montant de cotisation et date de démarrage requis.");
   }
+  if (tontine.frequency === "CUSTOM_WEEKLY" && tontine.customWeekdays.length === 0) {
+    return fail("Sélectionnez au moins un jour de la semaine pour la fréquence personnalisée.");
+  }
 
   const orderedIds = tontine.memberships.map((m) => m.id);
-  const plan = buildRotativeCyclePlan(tontine.startDate, tontine.frequency, orderedIds);
+  const plan = buildRotativeCyclePlan(
+    tontine.startDate,
+    tontine.frequency,
+    orderedIds,
+    tontine.customWeekdays
+  );
   const contributionAmountXof = tontine.contributionAmountXof;
   // Un membre à N bras cotise N fois le montant de base (+ frais, non multipliés) à chaque tour,
   // mais ne reçoit qu'un seul tour de bénéficiaire : le pot qu'il perçoit ce tour-là est la somme

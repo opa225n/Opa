@@ -26,6 +26,32 @@ describe("computeCycleDueDate", () => {
   });
 });
 
+describe("computeCycleDueDate (CUSTOM_WEEKLY)", () => {
+  const start = new Date("2026-01-06T00:00:00.000Z");
+  const startDay = start.getDay();
+  const otherDay = (startDay + 4) % 7;
+  const weekdays = [startDay, otherDay];
+
+  it("retourne la date de démarrage elle-même comme 1er tour si son jour y figure", () => {
+    const due = computeCycleDueDate(start, "CUSTOM_WEEKLY", 1, weekdays);
+    expect(due.toISOString()).toBe(start.toISOString());
+  });
+
+  it("avance jusqu'au prochain jour demandé pour les tours suivants, en ordre croissant", () => {
+    const plan = [1, 2, 3, 4].map((i) => computeCycleDueDate(start, "CUSTOM_WEEKLY", i, weekdays));
+    for (const d of plan) {
+      expect(weekdays).toContain(d.getDay());
+    }
+    for (let i = 1; i < plan.length; i++) {
+      expect(plan[i].getTime()).toBeGreaterThan(plan[i - 1].getTime());
+    }
+  });
+
+  it("lève une erreur si aucun jour de semaine n'est fourni", () => {
+    expect(() => computeCycleDueDate(start, "CUSTOM_WEEKLY", 1, [])).toThrow();
+  });
+});
+
 describe("buildRotativeCyclePlan", () => {
   const start = new Date("2026-02-01T00:00:00.000Z");
   const members = ["m1", "m2", "m3"];

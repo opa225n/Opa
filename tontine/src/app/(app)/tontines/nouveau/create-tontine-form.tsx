@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
+import { WEEKDAY_LABELS } from "@/lib/labels";
 
 type CreateTontineFormValues = z.input<typeof createTontineSchema>;
 
@@ -26,17 +27,30 @@ export function CreateTontineForm() {
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<CreateTontineFormValues, unknown, CreateTontineInput>({
     resolver: zodResolver(createTontineSchema),
     defaultValues: {
       frequency: "WEEKLY",
+      customWeekdays: [],
       feeAmountXof: 0,
       latePenaltyAmountXof: 0,
       latePenaltyGraceDays: 0,
       startDate: defaultStartDate as unknown as Date,
     },
   });
+
+  const frequency = watch("frequency");
+  const customWeekdays = (watch("customWeekdays") ?? []) as number[];
+
+  function toggleWeekday(day: number) {
+    const next = customWeekdays.includes(day)
+      ? customWeekdays.filter((d) => d !== day)
+      : [...customWeekdays, day].sort((a: number, b: number) => a - b);
+    setValue("customWeekdays", next, { shouldValidate: true });
+  }
 
   async function onSubmit(values: CreateTontineInput) {
     setServerError(null);
@@ -93,6 +107,7 @@ export function CreateTontineForm() {
             <option value="DAILY">Quotidienne</option>
             <option value="WEEKLY">Hebdomadaire</option>
             <option value="MONTHLY">Mensuelle</option>
+            <option value="CUSTOM_WEEKLY">Jours personnalisés (ex : mardi + samedi)</option>
           </select>
         </div>
         <div className="flex flex-col gap-1.5">
@@ -101,6 +116,35 @@ export function CreateTontineForm() {
           {errors.startDate && <p className="text-sm text-red-600">{errors.startDate.message}</p>}
         </div>
       </div>
+
+      {frequency === "CUSTOM_WEEKLY" && (
+        <div className="flex flex-col gap-1.5">
+          <Label>Jours des tours</Label>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(WEEKDAY_LABELS).map(([day, label]) => {
+              const dayNum = Number(day);
+              const checked = customWeekdays.includes(dayNum);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleWeekday(dayNum)}
+                  className={`rounded-full px-3 py-1 text-sm ${
+                    checked
+                      ? "bg-emerald-800 text-white"
+                      : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          {errors.customWeekdays && (
+            <p className="text-sm text-red-600">{errors.customWeekdays.message}</p>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-4">
         <div className="flex flex-col gap-1.5">

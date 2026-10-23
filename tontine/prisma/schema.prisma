@@ -152,6 +152,7 @@ enum Frequency {
   DAILY
   WEEKLY
   MONTHLY
+  CUSTOM_WEEKLY // tours sur des jours de semaine précis (ex: mardi + samedi) via customWeekdays
 }
 
 enum TontineStatus {
@@ -175,6 +176,9 @@ model Tontine {
   minContributionAmountXof Int? // tontine à cotisations variables
   recommendedAmountXof     Int? // tontine à cotisations variables
   frequency                Frequency @default(MONTHLY)
+  // Jours de la semaine des tours quand frequency = CUSTOM_WEEKLY (0 = dimanche ... 6 = samedi,
+  // convention Date.getDay()). Ignoré pour les autres fréquences.
+  customWeekdays           Int[]     @default([])
   startDate                DateTime?
   feeAmountXof             Int       @default(0) // frais éventuels par cotisation
 

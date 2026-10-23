@@ -2,6 +2,17 @@ export const FREQUENCY_LABELS: Record<string, string> = {
   DAILY: "Quotidienne",
   WEEKLY: "Hebdomadaire",
   MONTHLY: "Mensuelle",
+  CUSTOM_WEEKLY: "Jours personnalisés",
+};
+
+export const WEEKDAY_LABELS: Record<number, string> = {
+  0: "Dimanche",
+  1: "Lundi",
+  2: "Mardi",
+  3: "Mercredi",
+  4: "Jeudi",
+  5: "Vendredi",
+  6: "Samedi",
 };
 
 export const TONTINE_STATUS_LABELS: Record<string, string> = {

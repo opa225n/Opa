@@ -5,16 +5,44 @@ import type { Frequency } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 /**
+ * Renvoie la periodIndex-ième date (1-based) à partir de startDate (incluse) dont le jour de la
+ * semaine (0=dimanche...6=samedi, convention Date.getDay()) figure dans weekdays. Sert à la
+ * fréquence CUSTOM_WEEKLY (ex: tours chaque mardi et samedi — pas un intervalle régulier).
+ */
+function nthMatchingWeekday(startDate: Date, weekdays: number[], periodIndex: number): Date {
+  if (weekdays.length === 0) {
+    throw new Error("customWeekdays doit contenir au moins un jour pour la fréquence CUSTOM_WEEKLY.");
+  }
+  const days = new Set(weekdays);
+  let found = 0;
+  let cursor = startDate;
+  while (true) {
+    if (days.has(cursor.getDay())) {
+      found++;
+      if (found === periodIndex) return cursor;
+    }
+    cursor = addDays(cursor, 1);
+  }
+}
+
+/**
  * Calcule la date d'échéance d'une période à partir de la date de démarrage,
  * de la fréquence et de l'index de période (1-based).
  */
-export function computeCycleDueDate(startDate: Date, frequency: Frequency, periodIndex: number): Date {
+export function computeCycleDueDate(
+  startDate: Date,
+  frequency: Frequency,
+  periodIndex: number,
+  customWeekdays?: number[]
+): Date {
   const offset = periodIndex - 1;
   switch (frequency) {
     case "DAILY":
       return addDays(startDate, offset);
     case "WEEKLY":
       return addWeeks(startDate, offset);
+    case "CUSTOM_WEEKLY":
+      return nthMatchingWeekday(startDate, customWeekdays ?? [], periodIndex);
     case "MONTHLY":
     default:
       return addMonths(startDate, offset);
@@ -36,12 +64,14 @@ export interface CyclePlanItem {
 export function buildRotativeCyclePlan(
   startDate: Date,
   frequency: Frequency,
-  orderedMembershipIds: string[]
+  orderedMembershipIds: string[],
+  customWeekdays?: number[]
 ): CyclePlanItem[] {
   return orderedMembershipIds.map((membershipId, index) => {
     const periodIndex = index + 1;
-    const periodDue = computeCycleDueDate(startDate, frequency, periodIndex);
-    const periodStart = index === 0 ? startDate : computeCycleDueDate(startDate, frequency, periodIndex - 1);
+    const periodDue = computeCycleDueDate(startDate, frequency, periodIndex, customWeekdays);
+    const periodStart =
+      index === 0 ? startDate : computeCycleDueDate(startDate, frequency, periodIndex - 1, customWeekdays);
     return { periodIndex, periodStart, periodDue, beneficiaryMembershipId: membershipId };
   });
 }
