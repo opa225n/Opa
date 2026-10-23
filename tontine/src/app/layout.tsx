@@ -32,7 +32,10 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
-  manifest: "/manifest.webmanifest",
+  // Paramètre de version pour casser le cache du manifeste PWA (même principe que l'icône
+  // ci-dessus) : incrémenter à chaque changement de start_url/icônes, sinon un appareil qui a
+  // déjà "ajouté à l'écran d'accueil" garde l'ancien manifeste en cache indéfiniment.
+  manifest: "/manifest.webmanifest?v=2",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
