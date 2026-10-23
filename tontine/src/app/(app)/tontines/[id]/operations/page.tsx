@@ -10,6 +10,7 @@ import {
   PAYOUT_STATUS_LABELS,
 } from "@/lib/labels";
 import { PayoutConfirmForm } from "./payout-confirm-form";
+import { MobileMoneyPreview } from "./mobile-money-preview";
 
 export default async function OperationsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -38,6 +39,8 @@ export default async function OperationsPage({ params }: { params: Promise<{ id:
         <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">Opérations</h1>
         <p className="text-sm text-stone-500">Versements et paiements de la tontine.</p>
       </div>
+
+      <MobileMoneyPreview />
 
       <Card>
         <CardHeader>
