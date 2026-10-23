@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { BrandCornerPattern } from "@/components/brand/pattern";
 import { formatXof } from "@/lib/money";
 
 export default async function DashboardPage() {
@@ -61,11 +63,102 @@ export default async function DashboardPage() {
     },
   });
 
+  // "Tontine principale" mise en avant : celle dont l'échéance est la plus proche, sinon la
+  // première tontine active du membre.
+  const featuredTontineId = myDueContributions[0]?.tontineId ?? tontineIds[0];
+  const nextDue = myDueContributions[0];
+
+  const [featuredTontine, totalAccumulatedAgg, activeCycle] = featuredTontineId
+    ? await Promise.all([
+        prisma.tontine.findUnique({ where: { id: featuredTontineId }, select: { id: true, name: true } }),
+        prisma.contribution.aggregate({
+          where: { tontineId: featuredTontineId },
+          _sum: { amountConfirmedXof: true },
+        }),
+        prisma.tontineCycle.findFirst({
+          where: { tontineId: featuredTontineId, status: "ACTIVE" },
+          include: { contributions: true },
+        }),
+      ])
+    : [null, null, null];
+
+  const totalAccumulatedXof = totalAccumulatedAgg?._sum.amountConfirmedXof ?? 0;
+  const cycleExpectedXof = activeCycle?.contributions.reduce((s, c) => s + c.amountExpectedXof, 0) ?? 0;
+  const cycleConfirmedXof = activeCycle?.contributions.reduce((s, c) => s + c.amountConfirmedXof, 0) ?? 0;
+  const cycleProgressPct = cycleExpectedXof > 0 ? (cycleConfirmedXof / cycleExpectedXof) * 100 : 0;
+
+  const firstName = (user.name ?? "").trim().split(/\s+/)[0] || "";
+
   return (
     <div className="flex flex-col gap-6">
+      <p className="text-lg text-stone-700">
+        Bonjour{firstName ? ` ${firstName}` : ""} <span aria-hidden="true">👋</span>
+      </p>
+
+      {featuredTontine ? (
+        <div className="relative overflow-hidden rounded-2xl bg-[var(--brand)] p-6 text-[var(--background)] shadow-lg">
+          <BrandCornerPattern className="pointer-events-none absolute right-0 top-0 h-28 w-28" />
+          <div className="relative flex flex-col gap-5">
+            <div>
+              <p className="text-sm text-[var(--background)]/70">{featuredTontine.name}</p>
+              <p className="font-display text-3xl font-semibold">{formatXof(totalAccumulatedXof)}</p>
+              <p className="text-xs text-[var(--background)]/60">Montant total accumulé</p>
+            </div>
+
+            {nextDue ? (
+              <div className="flex flex-col gap-3 border-t border-[var(--background)]/15 pt-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-xs text-[var(--background)]/70">Prochaine cotisation</p>
+                  <p className="text-xl font-semibold">
+                    {formatXof(
+                      Math.max(
+                        nextDue.amountExpectedXof + nextDue.penaltyXof - nextDue.amountConfirmedXof,
+                        0
+                      )
+                    )}
+                  </p>
+                  <p className="text-xs text-[var(--background)]/60">
+                    Le {nextDue.cycle.periodDue.toLocaleDateString("fr-FR")}
+                  </p>
+                </div>
+                <Link href={`/tontines/${featuredTontine.id}/cotisations?cycle=${nextDue.cycle.periodIndex}`}>
+                  <Button variant="gold" size="lg">
+                    Payer maintenant
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <p className="border-t border-[var(--background)]/15 pt-4 text-sm text-[var(--background)]/70">
+                Aucune cotisation en attente pour le moment.
+              </p>
+            )}
+
+            {activeCycle && cycleExpectedXof > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <p className="text-xs text-[var(--background)]/70">
+                  Progression de la cagnotte (tour en cours)
+                </p>
+                <Progress value={cycleProgressPct} />
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-10 text-center">
+            <p className="text-stone-600">Vous n&apos;avez pas encore de tontine active.</p>
+            <Link href="/tontines/nouveau">
+              <Button>Créer une tontine</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       <div>
-        <h1 className="font-display text-2xl font-semibold text-[var(--foreground)]">Tableau de bord</h1>
-        <p className="text-sm text-stone-500">Vue d&apos;ensemble de toutes vos tontines.</p>
+        <h2 className="font-display text-xl font-semibold text-[var(--foreground)]">
+          Vue d&apos;ensemble
+        </h2>
+        <p className="text-sm text-stone-500">Toutes vos tontines confondues.</p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

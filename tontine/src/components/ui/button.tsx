@@ -13,6 +13,7 @@ const buttonVariants = cva(
         ghost: "hover:bg-stone-100 text-stone-900",
         link: "text-[var(--brand)] underline-offset-4 hover:underline",
         secondary: "border border-[var(--brand-gold)] bg-[var(--brand-gold)]/10 text-[var(--brand)] hover:bg-[var(--brand-gold)]/20",
+        gold: "bg-[var(--brand-gold)] text-[var(--brand)] font-semibold hover:bg-[var(--brand-gold)]/90",
       },
       size: {
         default: "h-11 px-4 py-2",
