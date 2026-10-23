@@ -37,6 +37,7 @@ export default async function AdminOverviewPage() {
         id: true,
         fullName: true,
         phone: true,
+        isManaged: true,
         platformRole: true,
         createdAt: true,
         _count: { select: { memberships: true } },
@@ -163,7 +164,9 @@ export default async function AdminOverviewPage() {
               {users.map((u) => (
                 <tr key={u.id} className="border-b border-stone-100">
                   <td className="py-2 pr-4 font-medium">{u.fullName}</td>
-                  <td className="py-2 pr-4 text-stone-500">{u.phone}</td>
+                  <td className="py-2 pr-4 text-stone-500">
+                    {u.isManaged ? "— (géré, sans compte)" : u.phone}
+                  </td>
                   <td className="py-2 pr-4">
                     {u.platformRole === "ADMIN" ? (
                       <Badge variant="default">Admin</Badge>

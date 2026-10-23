@@ -24,7 +24,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (typeof phone !== "string" || typeof password !== "string") return null;
 
         const user = await prisma.user.findUnique({ where: { phone } });
-        if (!user || user.deletedAt) return null;
+        // Un membre "sans compte" (isManaged) n'a pas de vrai numéro ni de mot de passe utilisable :
+        // il ne peut jamais se connecter lui-même, même si son identifiant interne fuitait.
+        if (!user || user.deletedAt || user.isManaged) return null;
         if (user.isSuspended) {
           throw new Error("Ce compte a été suspendu. Contactez le support.");
         }

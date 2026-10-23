@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "node:crypto";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { requireMembership, requireUser, writeAuditLog, ForbiddenError } from "@/lib/rbac";
 import {
@@ -270,6 +272,64 @@ export async function inviteMemberAction(
 
   revalidatePath(`/tontines/${data.tontineId}/membres`);
   return { ok: true, data: { code } };
+}
+
+export async function addManagedMemberAction(
+  tontineId: string,
+  fullName: string
+): Promise<ActionResult<{ membershipId: string }>> {
+  const name = fullName.trim();
+  if (name.length < 2) {
+    return fail("Le nom doit contenir au moins 2 caractères.");
+  }
+
+  const { user: actor } = await requireMembership(tontineId, ["RESPONSABLE", "SECRETAIRE"]);
+
+  const maxOrder = await prisma.tontineMembership.aggregate({
+    where: { tontineId },
+    _max: { displayOrder: true },
+  });
+  // Mot de passe aléatoire inutilisable : personne ne peut se connecter sur ce compte (en plus
+  // de la garde explicite isManaged dans src/lib/auth.ts — défense en profondeur).
+  const passwordHash = await bcrypt.hash(`${randomUUID()}:${randomUUID()}`, 12);
+
+  const membership = await prisma.$transaction(async (tx) => {
+    const managedUser = await tx.user.create({
+      data: {
+        fullName: name,
+        phone: `managed:${randomUUID()}`,
+        passwordHash,
+        countryCode: "CI",
+        phoneVerified: true,
+        isManaged: true,
+        managedByUserId: actor.id,
+        termsAcceptedAt: new Date(),
+        profile: { create: {} },
+      },
+    });
+
+    return tx.tontineMembership.create({
+      data: {
+        tontineId,
+        userId: managedUser.id,
+        role: "MEMBRE",
+        status: "ACTIVE",
+        displayOrder: (maxOrder._max.displayOrder ?? 0) + 1,
+      },
+    });
+  });
+
+  await writeAuditLog({
+    tontineId,
+    userId: actor.id,
+    action: "member.add_managed",
+    entityType: "TontineMembership",
+    entityId: membership.id,
+    metadata: { fullName: name },
+  });
+
+  revalidatePath(`/tontines/${tontineId}/membres`);
+  return { ok: true, data: { membershipId: membership.id } };
 }
 
 export async function revokeInvitationAction(invitationId: string): Promise<ActionResult> {

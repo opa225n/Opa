@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InviteForm } from "./invite-form";
+import { AddManagedMemberForm } from "./add-managed-member-form";
 import { MemberOrderList } from "./member-order-list";
 import { revokeInvitationAction } from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,7 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
     phone: m.user.phone,
     isSelf: m.userId === user.id,
     bras: m.bras,
+    isManaged: m.user.isManaged,
   }));
   const canEditBras = membership.role === "RESPONSABLE";
 
@@ -58,6 +60,21 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
           </CardHeader>
           <CardContent>
             <InviteForm tontineId={id} appUrl={appUrl} />
+          </CardContent>
+        </Card>
+      )}
+
+      {canManage && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Ajouter un membre sans compte</CardTitle>
+            <CardDescription>
+              Pour un membre sans smartphone/compte : vous gérez entièrement ses cotisations et
+              paiements (il ne peut pas se connecter lui-même).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AddManagedMemberForm tontineId={id} />
           </CardContent>
         </Card>
       )}

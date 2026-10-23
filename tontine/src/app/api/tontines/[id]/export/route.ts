@@ -27,12 +27,13 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   });
 
   const rows = contributions.flatMap((c) => {
+    const phone = c.membership.user.isManaged ? "—" : c.membership.user.phone;
     if (c.payments.length === 0) {
       return [[
         c.cycle.periodIndex,
         c.cycle.periodDue.toISOString().slice(0, 10),
         c.membership.user.fullName,
-        c.membership.user.phone,
+        phone,
         c.amountExpectedXof,
         c.amountConfirmedXof,
         CONTRIBUTION_STATUS_LABELS[c.status] ?? c.status,
@@ -46,7 +47,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       c.cycle.periodIndex,
       c.cycle.periodDue.toISOString().slice(0, 10),
       c.membership.user.fullName,
-      c.membership.user.phone,
+      phone,
       c.amountExpectedXof,
       c.amountConfirmedXof,
       CONTRIBUTION_STATUS_LABELS[c.status] ?? c.status,

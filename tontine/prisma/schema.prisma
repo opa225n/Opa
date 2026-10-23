@@ -47,12 +47,18 @@ model User {
   isSuspended      Boolean      @default(false)
   suspendedAt      DateTime?
   suspendedReason  String?
+  // Membre "sans compte" (surnom papier) ajouté par un responsable/secrétaire : pas de vrai
+  // numéro de téléphone, ne peut jamais se connecter (cf. garde dans src/lib/auth.ts).
+  isManaged        Boolean      @default(false)
+  managedByUserId  String?
   termsAcceptedAt  DateTime?
   onboardingSeenAt DateTime? // non-null une fois le guide de prise en main vu (sert à l'afficher une seule fois, par compte — pas par appareil)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   deletedAt        DateTime? // suppression logique
 
+  managedBy               User?                     @relation("ManagedUsers", fields: [managedByUserId], references: [id], onDelete: SetNull)
+  managedUsers            User[]                    @relation("ManagedUsers")
   profile                 UserProfile?
   memberships             TontineMembership[]
   tontinesCreated         Tontine[]
