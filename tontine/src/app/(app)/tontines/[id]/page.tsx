@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatXof } from "@/lib/money";
-import { FREQUENCY_LABELS, CYCLE_STATUS_LABELS } from "@/lib/labels";
+import { FREQUENCY_LABELS } from "@/lib/labels";
 import { StartTontineButton } from "./start-tontine-button";
 
 export default async function TontineOverviewPage({
@@ -16,9 +16,12 @@ export default async function TontineOverviewPage({
   const { id } = await params;
   const { tontine, membership } = await getTontineContext(id);
 
-  const [memberCount, currentCycle, nextCycle, pendingVerificationCount] = await Promise.all([
+  const [memberCount, groups, activeCycles, nextCycles, pendingVerificationCount] = await Promise.all([
     prisma.tontineMembership.count({ where: { tontineId: id, status: "ACTIVE" } }),
-    prisma.tontineCycle.findFirst({
+    prisma.tontineGroup.findMany({ where: { tontineId: id }, orderBy: { displayOrder: "asc" } }),
+    // Avec des groupes, chaque groupe a son propre tour ACTIVE en parallèle — on les récupère
+    // tous plutôt qu'un seul (findFirst choisirait arbitrairement l'un d'eux).
+    prisma.tontineCycle.findMany({
       where: { tontineId: id, status: "ACTIVE" },
       include: {
         beneficiaryOrder: { include: { membership: { include: { user: true } } } },
@@ -27,22 +30,40 @@ export default async function TontineOverviewPage({
       },
       orderBy: { periodIndex: "asc" },
     }),
-    prisma.tontineCycle.findFirst({
+    prisma.tontineCycle.findMany({
       where: { tontineId: id, status: "PENDING" },
       include: { beneficiaryOrder: { include: { membership: { include: { user: true } } } } },
       orderBy: { periodIndex: "asc" },
+      distinct: ["groupId"],
     }),
     prisma.payment.count({
       where: { contribution: { tontineId: id }, status: "DECLARED" },
     }),
   ]);
 
-  const expectedThisCycle = currentCycle
-    ? currentCycle.contributions.reduce((s, c) => s + c.amountExpectedXof, 0)
-    : 0;
-  const confirmedThisCycle = currentCycle
-    ? currentCycle.contributions.reduce((s, c) => s + c.amountConfirmedXof, 0)
-    : 0;
+  const expectedThisCycle = activeCycles.reduce(
+    (sum, c) => sum + c.contributions.reduce((s, ctr) => s + ctr.amountExpectedXof, 0),
+    0
+  );
+  const confirmedThisCycle = activeCycles.reduce(
+    (sum, c) => sum + c.contributions.reduce((s, ctr) => s + ctr.amountConfirmedXof, 0),
+    0
+  );
+
+  const cycleSections =
+    groups.length > 0
+      ? groups.map((g) => ({
+          label: g.name,
+          current: activeCycles.find((c) => c.groupId === g.id),
+          next: nextCycles.find((c) => c.groupId === g.id),
+        }))
+      : [
+          {
+            label: null,
+            current: activeCycles[0],
+            next: nextCycles[0],
+          },
+        ];
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,34 +88,42 @@ export default async function TontineOverviewPage({
 
       {tontine.status === "ACTIVE" && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Bénéficiaire actuel</CardTitle>
-              <CardDescription>
-                Tour {currentCycle?.periodIndex} · échéance le{" "}
-                {currentCycle?.periodDue.toLocaleDateString("fr-FR")}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-lg font-semibold text-stone-900">
-                {currentCycle?.beneficiaryOrder?.membership.user.fullName ?? "—"}
-              </p>
-              <p className="text-sm text-stone-500">
-                Versement prévu : {currentCycle ? formatXof(currentCycle.payout?.amountXof ?? 0) : "—"}
-              </p>
-            </CardContent>
-          </Card>
+          {cycleSections.map((section, i) => (
+            <div key={section.label ?? i} className="contents">
+              {section.label && (
+                <p className="col-span-full text-sm font-medium text-stone-500">{section.label}</p>
+              )}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Bénéficiaire actuel</CardTitle>
+                  <CardDescription>
+                    Tour {section.current?.periodIndex} · échéance le{" "}
+                    {section.current?.periodDue.toLocaleDateString("fr-FR")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-lg font-semibold text-stone-900">
+                    {section.current?.beneficiaryOrder?.membership.user.fullName ?? "—"}
+                  </p>
+                  <p className="text-sm text-stone-500">
+                    Versement prévu :{" "}
+                    {section.current ? formatXof(section.current.payout?.amountXof ?? 0) : "—"}
+                  </p>
+                </CardContent>
+              </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Prochain bénéficiaire</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-lg font-semibold text-stone-900">
-                {nextCycle?.beneficiaryOrder?.membership.user.fullName ?? "Dernier tour en cours"}
-              </p>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Prochain bénéficiaire</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-lg font-semibold text-stone-900">
+                    {section.next?.beneficiaryOrder?.membership.user.fullName ?? "Dernier tour en cours"}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          ))}
 
           <Card>
             <CardHeader>
@@ -128,16 +157,6 @@ export default async function TontineOverviewPage({
         </div>
       )}
 
-      {currentCycle && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Statut du tour</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Badge>{CYCLE_STATUS_LABELS[currentCycle.status]}</Badge>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

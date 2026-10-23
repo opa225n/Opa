@@ -18,13 +18,15 @@ export default async function OperationsPage({ params }: { params: Promise<{ id:
   const [payments, payouts] = await Promise.all([
     prisma.payment.findMany({
       where: { contribution: { tontineId: id } },
-      include: { contribution: { include: { membership: { include: { user: true } }, cycle: true } } },
+      include: {
+        contribution: { include: { membership: { include: { user: true } }, cycle: { include: { group: true } } } },
+      },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
     prisma.payout.findMany({
       where: { tontineId: id },
-      include: { membership: { include: { user: true } }, cycle: true },
+      include: { membership: { include: { user: true } }, cycle: { include: { group: true } } },
       orderBy: { cycle: { periodIndex: "asc" } },
     }),
   ]);
@@ -39,7 +41,8 @@ export default async function OperationsPage({ params }: { params: Promise<{ id:
           {payouts.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-stone-200 px-3 py-2 text-sm">
               <span>
-                Tour {p.cycle.periodIndex} · {p.membership.user.fullName}
+                {p.cycle.group ? `${p.cycle.group.name} · ` : ""}Tour {p.cycle.periodIndex} ·{" "}
+                {p.membership.user.fullName}
               </span>
               <div className="flex items-center gap-2">
                 <span className="font-medium">{formatXof(p.amountXof)}</span>
@@ -61,7 +64,8 @@ export default async function OperationsPage({ params }: { params: Promise<{ id:
           {payments.map((p) => (
             <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-stone-100 py-2 text-sm last:border-0">
               <span>
-                Tour {p.contribution.cycle.periodIndex} · {p.contribution.membership.user.fullName} ·{" "}
+                {p.contribution.cycle.group ? `${p.contribution.cycle.group.name} · ` : ""}Tour{" "}
+                {p.contribution.cycle.periodIndex} · {p.contribution.membership.user.fullName} ·{" "}
                 {PAYMENT_METHOD_LABELS[p.method]}
               </span>
               <div className="flex items-center gap-2">

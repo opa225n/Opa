@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { InviteForm } from "./invite-form";
 import { AddManagedMemberForm } from "./add-managed-member-form";
 import { MemberOrderList } from "./member-order-list";
+import { GroupsManager } from "./groups-manager";
 import { revokeInvitationAction } from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
 
@@ -20,10 +21,14 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
   const { id } = await params;
   const { tontine, user, membership } = await getTontineContext(id);
 
-  const [memberships, invitations, appUrl] = await Promise.all([
+  const [memberships, groups, invitations, appUrl] = await Promise.all([
     prisma.tontineMembership.findMany({
       where: { tontineId: id, status: "ACTIVE" },
       include: { user: true },
+      orderBy: { displayOrder: "asc" },
+    }),
+    prisma.tontineGroup.findMany({
+      where: { tontineId: id },
       orderBy: { displayOrder: "asc" },
     }),
     prisma.invitation.findMany({
@@ -35,8 +40,10 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
 
   const canManage = ["RESPONSABLE", "SECRETAIRE"].includes(membership.role);
   const canReorder = membership.role === "RESPONSABLE" && tontine.status === "DRAFT";
+  const canEditBras = membership.role === "RESPONSABLE";
+  const canManageGroups = membership.role === "RESPONSABLE" && tontine.status === "DRAFT";
 
-  const memberRows = memberships.map((m) => ({
+  const toRow = (m: (typeof memberships)[number]) => ({
     id: m.id,
     role: m.role,
     fullName: m.user.fullName,
@@ -44,8 +51,15 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
     isSelf: m.userId === user.id,
     bras: m.bras,
     isManaged: m.user.isManaged,
+    groupId: m.groupId,
+  });
+
+  const selectableGroups = groups.map((g) => ({ id: g.id, name: g.name }));
+  const groupedSections = groups.map((g) => ({
+    group: g,
+    rows: memberships.filter((m) => m.groupId === g.id).map(toRow),
   }));
-  const canEditBras = membership.role === "RESPONSABLE";
+  const ungroupedRows = memberships.filter((m) => !m.groupId).map(toRow);
 
   return (
     <div className="flex flex-col gap-6">
@@ -113,9 +127,73 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
         </Card>
       )}
 
+      {(canManageGroups || groups.length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Groupes</CardTitle>
+            <CardDescription>
+              Facultatif : répartissez les membres en groupes pour des rotations parallèles
+              (chaque groupe a son propre ordre de bénéficiaires et son propre calendrier de
+              tours, à la même cotisation). Sans groupe, la tontine fonctionne comme une rotation
+              unique.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {canManageGroups ? (
+              <GroupsManager
+                tontineId={id}
+                initialGroups={groups.map((g) => ({
+                  id: g.id,
+                  name: g.name,
+                  weekday: g.weekday,
+                  memberCount: memberships.filter((m) => m.groupId === g.id).length,
+                }))}
+                isCustomWeekly={tontine.frequency === "CUSTOM_WEEKLY"}
+              />
+            ) : (
+              <ul className="flex flex-col gap-1 text-sm text-stone-600">
+                {groups.map((g) => (
+                  <li key={g.id}>
+                    {g.name} — {memberships.filter((m) => m.groupId === g.id).length} membre(s)
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {groupedSections.map(({ group, rows }) => (
+        <Card key={group.id}>
+          <CardHeader>
+            <CardTitle>
+              Groupe « {group.name} » ({rows.length})
+            </CardTitle>
+            <CardDescription>
+              {canReorder
+                ? "Ordre des bénéficiaires de ce groupe : utilisez les flèches pour réorganiser avant de démarrer la tontine."
+                : "Ordre des bénéficiaires, verrouillé depuis le démarrage de la tontine."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MemberOrderList
+              tontineId={id}
+              initialMembers={rows}
+              canManage={canManage && tontine.status === "DRAFT"}
+              canReorder={canReorder}
+              canEditBras={canEditBras}
+              groups={selectableGroups}
+            />
+          </CardContent>
+        </Card>
+      ))}
+
+      {(groups.length === 0 || ungroupedRows.length > 0) && (
       <Card>
         <CardHeader>
-          <CardTitle>Membres ({memberships.length})</CardTitle>
+          <CardTitle>
+            {groups.length > 0 ? `Sans groupe (${ungroupedRows.length})` : `Membres (${memberships.length})`}
+          </CardTitle>
           <CardDescription>
             {canReorder
               ? "Ordre des bénéficiaires : utilisez les flèches pour réorganiser avant de démarrer la tontine."
@@ -127,13 +205,15 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
         <CardContent>
           <MemberOrderList
             tontineId={id}
-            initialMembers={memberRows}
+            initialMembers={ungroupedRows}
             canManage={canManage && tontine.status === "DRAFT"}
             canReorder={canReorder}
             canEditBras={canEditBras}
+            groups={selectableGroups}
           />
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

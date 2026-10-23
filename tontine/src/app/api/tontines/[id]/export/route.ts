@@ -20,7 +20,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     where: { tontineId: id },
     include: {
       membership: { include: { user: true } },
-      cycle: true,
+      cycle: { include: { group: true } },
       payments: true,
     },
     orderBy: [{ cycle: { periodIndex: "asc" } }, { membership: { displayOrder: "asc" } }],
@@ -28,8 +28,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const rows = contributions.flatMap((c) => {
     const phone = c.membership.user.isManaged ? "—" : c.membership.user.phone;
+    const groupe = c.cycle.group?.name ?? "";
     if (c.payments.length === 0) {
       return [[
+        groupe,
         c.cycle.periodIndex,
         c.cycle.periodDue.toISOString().slice(0, 10),
         c.membership.user.fullName,
@@ -44,6 +46,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       ]];
     }
     return c.payments.map((p) => [
+      groupe,
       c.cycle.periodIndex,
       c.cycle.periodDue.toISOString().slice(0, 10),
       c.membership.user.fullName,
@@ -60,6 +63,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
 
   const csv = toCsv(
     [
+      "Groupe",
       "Tour",
       "Échéance",
       "Membre",

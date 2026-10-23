@@ -204,6 +204,7 @@ model Tontine {
   createdBy   User   @relation(fields: [createdById], references: [id])
 
   memberships      TontineMembership[]
+  groups           TontineGroup[]
   rules            TontineRules[]
   invitations      Invitation[]
   cycles           TontineCycle[]
@@ -232,6 +233,30 @@ enum MembershipStatus {
   LEFT
 }
 
+// Sous-groupe/poule : rotations parallèles au sein d'une même tontine (ex: 2 groupes, chacun
+// avec son propre ordre de bénéficiaires et son propre calendrier de tours — cotisation/frais
+// restent définis au niveau de la tontine). Optionnel : une tontine sans groupe fonctionne
+// exactement comme avant (une seule rotation globale).
+model TontineGroup {
+  id        String  @id @default(cuid())
+  tontineId String
+  tontine   Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  name      String
+  // Jour de la semaine propre à ce groupe (0=dimanche...6=samedi) quand la tontine est en
+  // fréquence CUSTOM_WEEKLY (ex: groupe 1 = mardi, groupe 2 = samedi). Sinon ignoré : le
+  // groupe suit la fréquence globale (DAILY/WEEKLY/MONTHLY), indépendamment des autres groupes.
+  weekday      Int?
+  displayOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  memberships TontineMembership[]
+  cycles      TontineCycle[]
+
+  @@unique([tontineId, name])
+  @@index([tontineId])
+}
+
 model TontineMembership {
   id           String            @id @default(cuid())
   tontineId    String
@@ -248,6 +273,11 @@ model TontineMembership {
   // nombre de "bras" (parts) détenus par ce membre : multiplie sa cotisation attendue à chaque
   // tour, mais ne lui donne qu'un seul tour de bénéficiaire (pas de tours supplémentaires).
   bras         Int               @default(1)
+  // groupe/poule d'appartenance si la tontine utilise des groupes (sinon null = rotation
+  // unique, comportement historique). Doit être renseigné pour tous les membres actifs avant
+  // le démarrage dès qu'au moins un TontineGroup existe (cf. startTontineAction).
+  groupId      String?
+  group        TontineGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   contributions     Contribution[]
   payoutsReceived   Payout[]
@@ -339,7 +369,12 @@ model TontineCycle {
   id          String      @id @default(cuid())
   tontineId   String
   tontine     Tontine     @relation(fields: [tontineId], references: [id], onDelete: Cascade)
-  periodIndex Int // 1, 2, 3...
+  // null si la tontine ne découpe pas en groupes (comportement historique, un seul tour de
+  // table pour toute la tontine). periodIndex est alors local à la tontine entière ; dès que
+  // groupId est renseigné il redevient local à CE groupe (chaque groupe a ses propres 1, 2, 3...).
+  groupId     String?
+  group       TontineGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  periodIndex Int // 1, 2, 3... (local à la tontine si pas de groupe, sinon local au groupe)
   periodStart DateTime
   periodDue   DateTime // échéance de cotisation
   status      CycleStatus @default(PENDING)
@@ -349,8 +384,14 @@ model TontineCycle {
   contributions    Contribution[]
   payout           Payout?
 
-  @@unique([tontineId, periodIndex])
+  // Note : Postgres ne considère jamais deux NULL égaux dans une contrainte unique, donc cette
+  // contrainte ne protège pleinement que les tours déjà rattachés à un groupe. Pour les tontines
+  // sans groupe (groupId toujours null), l'unicité de periodIndex par tontine reste garantie par
+  // la génération applicative (startTontineAction), pas par la base — acceptable car c'est le
+  // seul point d'écriture de ce champ.
+  @@unique([tontineId, groupId, periodIndex])
   @@index([tontineId, status])
+  @@index([groupId])
 }
 
 model BeneficiaryOrder {

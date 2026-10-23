@@ -31,6 +31,7 @@ export default async function RulesPage({ params }: { params: Promise<{ id: stri
     frais: number;
     frequence: string;
     nombreDeTours: number;
+    groupes?: { nom: string | null; membres: number }[];
     dateDemarrage: string;
     reglesDeRetard: string;
     conditionsEntreeSortie: string;
@@ -58,6 +59,12 @@ export default async function RulesPage({ params }: { params: Promise<{ id: stri
           <p>
             <strong>Nombre de tours :</strong> {content.nombreDeTours}
           </p>
+          {content.groupes && content.groupes.length > 0 && (
+            <p>
+              <strong>Groupes :</strong>{" "}
+              {content.groupes.map((g) => `${g.nom} (${g.membres} membres)`).join(", ")}
+            </p>
+          )}
           <p>
             <strong>Règles de retard :</strong> {content.reglesDeRetard}
           </p>

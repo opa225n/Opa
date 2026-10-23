@@ -12,11 +12,11 @@ export default async function ContributionsPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ cycle?: string }>;
+  searchParams: Promise<{ cycle?: string; group?: string }>;
 }) {
   const { id } = await params;
   const { tontine, membership } = await getTontineContext(id);
-  const { cycle: cycleParam } = await searchParams;
+  const { cycle: cycleParam, group: groupParam } = await searchParams;
 
   if (tontine.status === "DRAFT") {
     return (
@@ -28,8 +28,14 @@ export default async function ContributionsPage({
     );
   }
 
-  const cycles = await prisma.tontineCycle.findMany({
+  const groups = await prisma.tontineGroup.findMany({
     where: { tontineId: id },
+    orderBy: { displayOrder: "asc" },
+  });
+  const selectedGroupId = groups.length === 0 ? undefined : (groupParam ?? groups[0].id);
+
+  const cycles = await prisma.tontineCycle.findMany({
+    where: { tontineId: id, groupId: groups.length > 0 ? selectedGroupId : undefined },
     orderBy: { periodIndex: "asc" },
     select: { id: true, periodIndex: true, status: true },
   });
@@ -57,11 +63,29 @@ export default async function ContributionsPage({
         <ApplyPenaltiesButton tontineId={id} />
       )}
 
+      {groups.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto">
+          {groups.map((g) => (
+            <a
+              key={g.id}
+              href={`?group=${g.id}`}
+              className={`whitespace-nowrap rounded-full px-3 py-1 text-sm ${
+                selectedGroupId === g.id
+                  ? "bg-emerald-800 text-white"
+                  : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+              }`}
+            >
+              {g.name}
+            </a>
+          ))}
+        </div>
+      )}
+
       <div className="flex gap-2 overflow-x-auto">
         {cycles.map((c) => (
           <a
             key={c.id}
-            href={`?cycle=${c.periodIndex}`}
+            href={selectedGroupId ? `?group=${selectedGroupId}&cycle=${c.periodIndex}` : `?cycle=${c.periodIndex}`}
             className={`whitespace-nowrap rounded-full px-3 py-1 text-sm ${
               selectedCycle?.id === c.id
                 ? "bg-emerald-800 text-white"

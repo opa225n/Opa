@@ -82,17 +82,35 @@ export async function reorderMembersAction(
   if (tontine.status !== "DRAFT") {
     return fail("L'ordre des bénéficiaires ne peut plus être modifié librement après le démarrage.");
   }
+  if (orderedMembershipIds.length === 0) {
+    return fail("La liste d'ordre ne peut pas être vide.");
+  }
 
-  const activeMemberships = await prisma.tontineMembership.findMany({
-    where: { tontineId, status: "ACTIVE" },
+  // Le réordonnancement se fait par "lot" : tous les membres sans groupe ensemble, ou tous les
+  // membres d'un même groupe ensemble (jamais un mélange) — chaque groupe a son propre ordre de
+  // bénéficiaires, indépendant des autres.
+  const toReorder = await prisma.tontineMembership.findMany({
+    where: { id: { in: orderedMembershipIds }, tontineId, status: "ACTIVE" },
+    select: { id: true, groupId: true },
+  });
+  if (toReorder.length !== orderedMembershipIds.length) {
+    return fail("Liste d'ordre invalide.");
+  }
+  const scopeGroupId = toReorder[0].groupId;
+  if (toReorder.some((m) => m.groupId !== scopeGroupId)) {
+    return fail("Tous les membres réordonnés doivent appartenir au même groupe.");
+  }
+
+  const scopeMemberships = await prisma.tontineMembership.findMany({
+    where: { tontineId, status: "ACTIVE", groupId: scopeGroupId },
     select: { id: true },
   });
-  const activeIds = new Set(activeMemberships.map((m) => m.id));
+  const scopeIds = new Set(scopeMemberships.map((m) => m.id));
   if (
-    orderedMembershipIds.length !== activeIds.size ||
-    !orderedMembershipIds.every((id) => activeIds.has(id))
+    orderedMembershipIds.length !== scopeIds.size ||
+    !orderedMembershipIds.every((id) => scopeIds.has(id))
   ) {
-    return fail("La liste d'ordre doit contenir exactement tous les membres actifs.");
+    return fail("La liste d'ordre doit contenir exactement tous les membres actifs de ce groupe.");
   }
 
   await prisma.$transaction(
@@ -113,12 +131,131 @@ export async function reorderMembersAction(
   return { ok: true, data: undefined };
 }
 
+export async function createGroupAction(
+  tontineId: string,
+  name: string,
+  weekday: number | null
+): Promise<ActionResult<{ groupId: string }>> {
+  const trimmed = name.trim();
+  if (trimmed.length < 1) {
+    return fail("Le nom du groupe est requis.");
+  }
+  if (weekday != null && (weekday < 0 || weekday > 6)) {
+    return fail("Jour de semaine invalide.");
+  }
+
+  const { user } = await requireMembership(tontineId, ["RESPONSABLE"]);
+
+  const tontine = await prisma.tontine.findUniqueOrThrow({ where: { id: tontineId } });
+  if (tontine.status !== "DRAFT") {
+    return fail("Les groupes ne peuvent plus être modifiés après le démarrage de la tontine.");
+  }
+
+  const maxOrder = await prisma.tontineGroup.aggregate({
+    where: { tontineId },
+    _max: { displayOrder: true },
+  });
+
+  let group;
+  try {
+    group = await prisma.tontineGroup.create({
+      data: { tontineId, name: trimmed, weekday, displayOrder: (maxOrder._max.displayOrder ?? -1) + 1 },
+    });
+  } catch {
+    return fail("Un groupe porte déjà ce nom.");
+  }
+
+  await writeAuditLog({
+    tontineId,
+    userId: user.id,
+    action: "tontine.create_group",
+    entityType: "TontineGroup",
+    entityId: group.id,
+    metadata: { name: trimmed, weekday },
+  });
+
+  revalidatePath(`/tontines/${tontineId}/membres`);
+  return { ok: true, data: { groupId: group.id } };
+}
+
+export async function deleteGroupAction(groupId: string): Promise<ActionResult> {
+  const group = await prisma.tontineGroup.findUniqueOrThrow({ where: { id: groupId } });
+  const { user } = await requireMembership(group.tontineId, ["RESPONSABLE"]);
+
+  const tontine = await prisma.tontine.findUniqueOrThrow({ where: { id: group.tontineId } });
+  if (tontine.status !== "DRAFT") {
+    return fail("Les groupes ne peuvent plus être modifiés après le démarrage de la tontine.");
+  }
+
+  // Les membres de ce groupe redeviennent "sans groupe" (onDelete: SetNull).
+  await prisma.tontineGroup.delete({ where: { id: groupId } });
+
+  await writeAuditLog({
+    tontineId: group.tontineId,
+    userId: user.id,
+    action: "tontine.delete_group",
+    entityType: "TontineGroup",
+    entityId: groupId,
+    metadata: { name: group.name },
+  });
+
+  revalidatePath(`/tontines/${group.tontineId}/membres`);
+  return { ok: true, data: undefined };
+}
+
+export async function assignMemberGroupAction(
+  membershipId: string,
+  groupId: string | null
+): Promise<ActionResult> {
+  const target = await prisma.tontineMembership.findUniqueOrThrow({ where: { id: membershipId } });
+  const { user } = await requireMembership(target.tontineId, ["RESPONSABLE"]);
+
+  const tontine = await prisma.tontine.findUniqueOrThrow({ where: { id: target.tontineId } });
+  if (tontine.status !== "DRAFT") {
+    return fail("Les groupes ne peuvent plus être modifiés après le démarrage de la tontine.");
+  }
+
+  if (groupId) {
+    const group = await prisma.tontineGroup.findUnique({ where: { id: groupId } });
+    if (!group || group.tontineId !== target.tontineId) {
+      return fail("Groupe introuvable.");
+    }
+  }
+
+  // Placé en fin du groupe cible (ou du "sans groupe") pour ne pas interférer avec l'ordre
+  // des bénéficiaires déjà fixé pour les autres membres de ce lot.
+  const maxOrder = await prisma.tontineMembership.aggregate({
+    where: { tontineId: target.tontineId, groupId },
+    _max: { displayOrder: true },
+  });
+
+  await prisma.tontineMembership.update({
+    where: { id: membershipId },
+    data: { groupId, displayOrder: (maxOrder._max.displayOrder ?? -1) + 1 },
+  });
+
+  await writeAuditLog({
+    tontineId: target.tontineId,
+    userId: user.id,
+    action: "member.assign_group",
+    entityType: "TontineMembership",
+    entityId: membershipId,
+    metadata: { groupId },
+  });
+
+  revalidatePath(`/tontines/${target.tontineId}/membres`);
+  return { ok: true, data: undefined };
+}
+
 export async function startTontineAction(tontineId: string): Promise<ActionResult> {
   const { user } = await requireMembership(tontineId, ["RESPONSABLE"]);
 
   const tontine = await prisma.tontine.findUniqueOrThrow({
     where: { id: tontineId },
-    include: { memberships: { where: { status: "ACTIVE" }, orderBy: { displayOrder: "asc" } } },
+    include: {
+      memberships: { where: { status: "ACTIVE" }, orderBy: { displayOrder: "asc" } },
+      groups: { orderBy: { displayOrder: "asc" } },
+    },
   });
 
   if (tontine.status !== "DRAFT") {
@@ -130,38 +267,83 @@ export async function startTontineAction(tontineId: string): Promise<ActionResul
   if (!tontine.contributionAmountXof || !tontine.startDate) {
     return fail("Montant de cotisation et date de démarrage requis.");
   }
-  if (tontine.frequency === "CUSTOM_WEEKLY" && tontine.customWeekdays.length === 0) {
-    return fail("Sélectionnez au moins un jour de la semaine pour la fréquence personnalisée.");
+
+  const startDate = tontine.startDate;
+  const contributionAmountXof = tontine.contributionAmountXof;
+
+  // Avec des groupes : chaque groupe a sa propre rotation (ordre, calendrier, pot) indépendante
+  // des autres, cotisation/fréquence restant communes à toute la tontine. Sans groupe (cas
+  // historique) : un seul "lot" couvrant tous les membres actifs, comportement inchangé.
+  type Batch = {
+    groupId: string | null;
+    groupName: string | null;
+    weekday: number[] | undefined;
+    orderedIds: string[];
+  };
+
+  const batches: Batch[] =
+    tontine.groups.length > 0
+      ? tontine.groups.map((g) => ({
+          groupId: g.id,
+          groupName: g.name,
+          weekday: g.weekday != null ? [g.weekday] : tontine.customWeekdays,
+          orderedIds: tontine.memberships.filter((m) => m.groupId === g.id).map((m) => m.id),
+        }))
+      : [
+          {
+            groupId: null,
+            groupName: null,
+            weekday: tontine.customWeekdays,
+            orderedIds: tontine.memberships.map((m) => m.id),
+          },
+        ];
+
+  if (tontine.groups.length > 0) {
+    const unassignedCount = tontine.memberships.filter((m) => !m.groupId).length;
+    if (unassignedCount > 0) {
+      return fail(`${unassignedCount} membre(s) actif(s) ne sont assignés à aucun groupe.`);
+    }
+    const tooSmall = batches.find((b) => b.orderedIds.length < 2);
+    if (tooSmall) {
+      return fail(`Le groupe « ${tooSmall.groupName} » doit avoir au moins 2 membres actifs.`);
+    }
+  }
+  if (tontine.frequency === "CUSTOM_WEEKLY") {
+    const missingWeekday = batches.find((b) => !b.weekday || b.weekday.length === 0);
+    if (missingWeekday) {
+      return fail(
+        missingWeekday.groupName
+          ? `Le groupe « ${missingWeekday.groupName} » doit avoir un jour de semaine configuré pour la fréquence personnalisée.`
+          : "Sélectionnez au moins un jour de la semaine pour la fréquence personnalisée."
+      );
+    }
   }
 
-  const orderedIds = tontine.memberships.map((m) => m.id);
-  const plan = buildRotativeCyclePlan(
-    tontine.startDate,
-    tontine.frequency,
-    orderedIds,
-    tontine.customWeekdays
-  );
-  const contributionAmountXof = tontine.contributionAmountXof;
   // Un membre à N bras cotise N fois le montant de base (+ frais, non multipliés) à chaque tour,
   // mais ne reçoit qu'un seul tour de bénéficiaire : le pot qu'il perçoit ce tour-là est la somme
-  // des cotisations réellement dues par tous les membres, bras compris.
+  // des cotisations réellement dues par les membres de son groupe (ou de toute la tontine sans
+  // groupes), bras compris.
   const amountExpectedByMembershipId = new Map(
-    tontine.memberships.map((m) => [
-      m.id,
-      contributionAmountXof * m.bras + tontine.feeAmountXof,
-    ])
+    tontine.memberships.map((m) => [m.id, contributionAmountXof * m.bras + tontine.feeAmountXof])
   );
-  const potPerCycle = tontine.memberships.reduce(
-    (sum, m) => sum + amountExpectedByMembershipId.get(m.id)!,
-    0
-  );
+
+  const batchPlans = batches.map((batch) => ({
+    batch,
+    plan: buildRotativeCyclePlan(startDate, tontine.frequency, batch.orderedIds, batch.weekday),
+    potPerCycle: batch.orderedIds.reduce((sum, id) => sum + amountExpectedByMembershipId.get(id)!, 0),
+  }));
+  const totalTours = batchPlans.reduce((sum, bp) => sum + bp.plan.length, 0);
 
   const rulesContent = {
     montant: tontine.contributionAmountXof,
     frais: tontine.feeAmountXof,
     frequence: tontine.frequency,
-    nombreDeTours: plan.length,
-    ordreDesBeneficiaires: orderedIds,
+    nombreDeTours: totalTours,
+    groupes:
+      tontine.groups.length > 0
+        ? batches.map((b) => ({ nom: b.groupName, membres: b.orderedIds.length }))
+        : undefined,
+    ordreDesBeneficiaires: tontine.memberships.map((m) => m.id),
     dateDemarrage: tontine.startDate,
     reglesDeRetard:
       tontine.latePenaltyAmountXof > 0
@@ -177,50 +359,53 @@ export async function startTontineAction(tontineId: string): Promise<ActionResul
       data: { tontineId, version: 1, status: "ACTIVE", content: rulesContent },
     });
 
-    for (const item of plan) {
-      const cycle = await tx.tontineCycle.create({
-        data: {
-          tontineId,
-          periodIndex: item.periodIndex,
-          periodStart: item.periodStart,
-          periodDue: item.periodDue,
-          status: item.periodIndex === 1 ? "ACTIVE" : "PENDING",
-        },
-      });
+    for (const { batch, plan, potPerCycle } of batchPlans) {
+      for (const item of plan) {
+        const cycle = await tx.tontineCycle.create({
+          data: {
+            tontineId,
+            groupId: batch.groupId,
+            periodIndex: item.periodIndex,
+            periodStart: item.periodStart,
+            periodDue: item.periodDue,
+            status: item.periodIndex === 1 ? "ACTIVE" : "PENDING",
+          },
+        });
 
-      await tx.beneficiaryOrder.create({
-        data: {
-          tontineId,
-          cycleId: cycle.id,
-          membershipId: item.beneficiaryMembershipId,
-          assignedMethod: "MANUAL",
-          confirmedAt: new Date(),
-        },
-      });
+        await tx.beneficiaryOrder.create({
+          data: {
+            tontineId,
+            cycleId: cycle.id,
+            membershipId: item.beneficiaryMembershipId,
+            assignedMethod: "MANUAL",
+            confirmedAt: new Date(),
+          },
+        });
 
-      await tx.payout.create({
-        data: {
-          tontineId,
-          cycleId: cycle.id,
-          membershipId: item.beneficiaryMembershipId,
-          // Convention de la tontine rotative classique : chaque membre cotise à chaque tour,
-          // y compris le bénéficiaire du tour ; il reçoit donc la somme des cotisations dues
-          // par tous les membres ce tour-là (bras compris).
-          amountXof: potPerCycle,
-          status: "PENDING",
-          recordedById: user.id,
-        },
-      });
+        await tx.payout.create({
+          data: {
+            tontineId,
+            cycleId: cycle.id,
+            membershipId: item.beneficiaryMembershipId,
+            // Convention de la tontine rotative classique : chaque membre du groupe (ou de la
+            // tontine entière sans groupes) cotise à chaque tour, y compris le bénéficiaire du
+            // tour ; il reçoit donc la somme des cotisations dues par son groupe ce tour-là.
+            amountXof: potPerCycle,
+            status: "PENDING",
+            recordedById: user.id,
+          },
+        });
 
-      await tx.contribution.createMany({
-        data: tontine.memberships.map((m) => ({
-          tontineId,
-          cycleId: cycle.id,
-          membershipId: m.id,
-          amountExpectedXof: amountExpectedByMembershipId.get(m.id)!,
-          status: "DUE" as const,
-        })),
-      });
+        await tx.contribution.createMany({
+          data: batch.orderedIds.map((membershipId) => ({
+            tontineId,
+            cycleId: cycle.id,
+            membershipId,
+            amountExpectedXof: amountExpectedByMembershipId.get(membershipId)!,
+            status: "DUE" as const,
+          })),
+        });
+      }
     }
 
     await tx.rulesAcceptance.create({
@@ -236,7 +421,7 @@ export async function startTontineAction(tontineId: string): Promise<ActionResul
     action: "tontine.start",
     entityType: "Tontine",
     entityId: tontineId,
-    metadata: { nombreDeTours: plan.length },
+    metadata: { nombreDeTours: totalTours, groupes: tontine.groups.length },
   });
 
   revalidatePath(`/tontines/${tontineId}`);

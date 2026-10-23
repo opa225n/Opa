@@ -1,7 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { reorderMembersAction, removeMemberAction, updateMemberBrasAction } from "@/app/actions/tontines";
+import { useRouter } from "next/navigation";
+import {
+  reorderMembersAction,
+  removeMemberAction,
+  updateMemberBrasAction,
+  assignMemberGroupAction,
+} from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MEMBER_ROLE_LABELS } from "@/lib/labels";
@@ -14,6 +20,12 @@ export interface MemberRow {
   isSelf: boolean;
   bras: number;
   isManaged: boolean;
+  groupId: string | null;
+}
+
+export interface SelectableGroup {
+  id: string;
+  name: string;
 }
 
 export function MemberOrderList({
@@ -22,13 +34,17 @@ export function MemberOrderList({
   canManage,
   canReorder,
   canEditBras,
+  groups,
 }: {
   tontineId: string;
   initialMembers: MemberRow[];
   canManage: boolean;
   canReorder: boolean;
   canEditBras: boolean;
+  /** Liste des groupes sélectionnables ; omis/vide = pas de gestion de groupes sur cette liste. */
+  groups?: SelectableGroup[];
 }) {
+  const router = useRouter();
   const [members, setMembers] = useState(initialMembers);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +67,17 @@ export function MemberOrderList({
     startTransition(async () => {
       const result = await reorderMembersAction(tontineId, next.map((m) => m.id));
       if (!result.ok) setError(result.error);
+    });
+  }
+
+  function changeGroup(membershipId: string, groupId: string) {
+    startTransition(async () => {
+      const result = await assignMemberGroupAction(membershipId, groupId === "" ? null : groupId);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -116,6 +143,22 @@ export function MemberOrderList({
                 </div>
               ) : (
                 m.bras > 1 && <Badge variant="secondary">{m.bras} bras</Badge>
+              )}
+              {groups && groups.length > 0 && canEditBras && (
+                <select
+                  aria-label="Groupe"
+                  className="h-8 rounded-md border border-stone-300 bg-white px-2 text-xs"
+                  value={m.groupId ?? ""}
+                  disabled={isPending}
+                  onChange={(e) => changeGroup(m.id, e.target.value)}
+                >
+                  <option value="">Sans groupe</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
             <div className="flex items-center gap-1">

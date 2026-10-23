@@ -5,9 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { formatXof } from "@/lib/money";
 import { CYCLE_STATUS_LABELS, PAYOUT_STATUS_LABELS } from "@/lib/labels";
 
-export default async function CalendarPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CalendarPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ group?: string }>;
+}) {
   const { id } = await params;
   const { tontine } = await getTontineContext(id);
+  const { group: groupParam } = await searchParams;
 
   if (tontine.status === "DRAFT") {
     return (
@@ -19,8 +26,14 @@ export default async function CalendarPage({ params }: { params: Promise<{ id: s
     );
   }
 
-  const cycles = await prisma.tontineCycle.findMany({
+  const groups = await prisma.tontineGroup.findMany({
     where: { tontineId: id },
+    orderBy: { displayOrder: "asc" },
+  });
+  const selectedGroupId = groups.length === 0 ? undefined : (groupParam ?? groups[0].id);
+
+  const cycles = await prisma.tontineCycle.findMany({
+    where: { tontineId: id, groupId: groups.length > 0 ? selectedGroupId : undefined },
     include: {
       beneficiaryOrder: { include: { membership: { include: { user: true } } } },
       payout: true,
@@ -31,6 +44,23 @@ export default async function CalendarPage({ params }: { params: Promise<{ id: s
 
   return (
     <div className="flex flex-col gap-3">
+      {groups.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto">
+          {groups.map((g) => (
+            <a
+              key={g.id}
+              href={`?group=${g.id}`}
+              className={`whitespace-nowrap rounded-full px-3 py-1 text-sm ${
+                selectedGroupId === g.id
+                  ? "bg-emerald-800 text-white"
+                  : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+              }`}
+            >
+              {g.name}
+            </a>
+          ))}
+        </div>
+      )}
       {cycles.map((cycle) => {
         const confirmed = cycle.contributions.reduce((s, c) => s + c.amountConfirmedXof, 0);
         const expected = cycle.contributions.reduce((s, c) => s + c.amountExpectedXof, 0);
