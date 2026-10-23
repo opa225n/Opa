@@ -52,6 +52,9 @@ model User {
   isManaged        Boolean      @default(false)
   managedByUserId  String?
   termsAcceptedAt  DateTime?
+  // Consentement explicite donné à l'inscription : cotisations, statuts de paiement et dates
+  // sont visibles par les membres de chaque tontine rejointe (règle de transparence).
+  transparencyAcceptedAt DateTime?
   onboardingSeenAt DateTime? // non-null une fois le guide de prise en main vu (sert à l'afficher une seule fois, par compte — pas par appareil)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt

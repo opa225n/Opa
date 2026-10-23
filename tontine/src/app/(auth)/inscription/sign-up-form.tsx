@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { User, Phone, Users, UserPlus, Eye } from "lucide-react";
 import { signUpSchema, type SignUpInput } from "@/lib/validations/auth";
 import { signUpAction } from "@/app/actions/auth";
 import { signInAction } from "@/app/actions/session";
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
+import { cn } from "@/lib/utils";
 
 const COUNTRIES = [
   { code: "CI", label: "Côte d'Ivoire" },
@@ -30,6 +32,7 @@ export function SignUpForm() {
   const next = searchParams.get("next");
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [destination, setDestination] = useState<"JOIN" | "CREATE">("JOIN");
 
   const {
     register,
@@ -38,7 +41,11 @@ export function SignUpForm() {
     setError,
   } = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { countryCode: "CI", acceptTerms: false as unknown as true },
+    defaultValues: {
+      countryCode: "CI",
+      acceptTerms: false as unknown as true,
+      acceptTransparency: false as unknown as true,
+    },
   });
 
   async function onSubmit(values: SignUpInput) {
@@ -58,10 +65,14 @@ export function SignUpForm() {
         return;
       }
       const loginResult = await signInAction({ phone: values.phone, password: values.password });
-      if (loginResult.ok) {
-        router.push(next && next.startsWith("/") ? next : "/dashboard");
-      } else {
+      if (!loginResult.ok) {
         router.push(next ? `/connexion?next=${encodeURIComponent(next)}` : "/connexion");
+        return;
+      }
+      if (next && next.startsWith("/")) {
+        router.push(next);
+      } else {
+        router.push(destination === "CREATE" ? "/tontines/nouveau" : "/rejoindre");
       }
     } finally {
       setSubmitting(false);
@@ -73,15 +84,61 @@ export function SignUpForm() {
       {serverError && <Alert variant="destructive">{serverError}</Alert>}
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="fullName">Nom complet</Label>
-        <Input id="fullName" autoComplete="name" {...register("fullName")} />
+        <Label htmlFor="fullName">Nom et prénom</Label>
+        <div className="relative">
+          <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+          <Input id="fullName" autoComplete="name" className="pl-9" {...register("fullName")} />
+        </div>
         {errors.fullName && <p className="text-sm text-red-600">{errors.fullName.message}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="phone">Numéro de téléphone</Label>
-        <Input id="phone" placeholder="+2250700000000" autoComplete="tel" {...register("phone")} />
+        <div className="relative">
+          <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
+          <Input
+            id="phone"
+            placeholder="+2250700000000"
+            autoComplete="tel"
+            className="pl-9"
+            {...register("phone")}
+          />
+        </div>
         {errors.phone && <p className="text-sm text-red-600">{errors.phone.message}</p>}
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Je souhaite</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setDestination("JOIN")}
+            className={cn(
+              "flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
+              destination === "JOIN"
+                ? "border-brand-gold bg-brand-gold/10"
+                : "border-stone-200 hover:border-stone-300"
+            )}
+          >
+            <Users className="h-5 w-5 text-brand" />
+            <span className="text-sm font-medium text-stone-900">Rejoindre une tontine existante</span>
+            <span className="text-xs text-stone-500">Accédez à une tontine grâce à un code.</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDestination("CREATE")}
+            className={cn(
+              "flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition-colors",
+              destination === "CREATE"
+                ? "border-brand-gold bg-brand-gold/10"
+                : "border-stone-200 hover:border-stone-300"
+            )}
+          >
+            <UserPlus className="h-5 w-5 text-brand" />
+            <span className="text-sm font-medium text-stone-900">Créer une nouvelle tontine</span>
+            <span className="text-xs text-stone-500">Rassemblez vos proches et démarrez.</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-1.5">
@@ -111,6 +168,25 @@ export function SignUpForm() {
         <Input id="password" type="password" autoComplete="new-password" {...register("password")} />
         {errors.password && <p className="text-sm text-red-600">{errors.password.message}</p>}
       </div>
+
+      <div className="flex gap-3 rounded-xl border border-stone-200 bg-stone-50 p-3">
+        <Eye className="mt-0.5 h-4 w-4 shrink-0 text-brand-gold" />
+        <div>
+          <p className="text-sm font-medium text-stone-900">Règle de transparence</p>
+          <p className="text-sm text-stone-600">
+            En rejoignant Tontine CI, vous acceptez que les cotisations, les statuts de paiement
+            et les dates soient visibles par les membres de la tontine, selon la règle définie
+            par le groupe.
+          </p>
+        </div>
+      </div>
+      <label className="flex items-start gap-2 text-sm text-stone-600">
+        <input type="checkbox" className="mt-1" {...register("acceptTransparency")} />
+        <span>J&apos;accepte la règle de transparence</span>
+      </label>
+      {errors.acceptTransparency && (
+        <p className="text-sm text-red-600">{errors.acceptTransparency.message}</p>
+      )}
 
       <label className="flex items-start gap-2 text-sm text-stone-600">
         <input type="checkbox" className="mt-1" {...register("acceptTerms")} />

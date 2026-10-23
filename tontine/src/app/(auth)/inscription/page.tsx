@@ -7,9 +7,9 @@ export default function SignUpPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Créer un compte</CardTitle>
+        <CardTitle>Créer votre compte</CardTitle>
         <CardDescription>
-          Gérez vos tontines en toute transparence, où que vous soyez.
+          Rejoignez une tontine ou créez la vôtre en quelques étapes.
         </CardDescription>
       </CardHeader>
       <CardContent>

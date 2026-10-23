@@ -36,6 +36,7 @@ export async function signUpAction(input: unknown): Promise<SignUpResult> {
       passwordHash,
       countryCode,
       termsAcceptedAt: new Date(),
+      transparencyAcceptedAt: new Date(),
       profile: { create: {} },
     },
   });

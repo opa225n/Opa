@@ -18,6 +18,9 @@ export const signUpSchema = z.object({
   acceptTerms: z.literal(true, {
     error: "Vous devez accepter les conditions d'utilisation et la politique de confidentialité.",
   }),
+  acceptTransparency: z.literal(true, {
+    error: "Vous devez accepter la règle de transparence pour continuer.",
+  }),
 });
 
 export type SignUpInput = z.infer<typeof signUpSchema>;
