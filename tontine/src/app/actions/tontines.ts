@@ -128,7 +128,20 @@ export async function startTontineAction(tontineId: string): Promise<ActionResul
 
   const orderedIds = tontine.memberships.map((m) => m.id);
   const plan = buildRotativeCyclePlan(tontine.startDate, tontine.frequency, orderedIds);
-  const amountExpected = tontine.contributionAmountXof + tontine.feeAmountXof;
+  const contributionAmountXof = tontine.contributionAmountXof;
+  // Un membre à N bras cotise N fois le montant de base (+ frais, non multipliés) à chaque tour,
+  // mais ne reçoit qu'un seul tour de bénéficiaire : le pot qu'il perçoit ce tour-là est la somme
+  // des cotisations réellement dues par tous les membres, bras compris.
+  const amountExpectedByMembershipId = new Map(
+    tontine.memberships.map((m) => [
+      m.id,
+      contributionAmountXof * m.bras + tontine.feeAmountXof,
+    ])
+  );
+  const potPerCycle = tontine.memberships.reduce(
+    (sum, m) => sum + amountExpectedByMembershipId.get(m.id)!,
+    0
+  );
 
   const rulesContent = {
     montant: tontine.contributionAmountXof,
@@ -175,8 +188,9 @@ export async function startTontineAction(tontineId: string): Promise<ActionResul
           cycleId: cycle.id,
           membershipId: item.beneficiaryMembershipId,
           // Convention de la tontine rotative classique : chaque membre cotise à chaque tour,
-          // y compris le bénéficiaire du tour ; il reçoit donc la somme des N cotisations.
-          amountXof: amountExpected * tontine.memberships.length,
+          // y compris le bénéficiaire du tour ; il reçoit donc la somme des cotisations dues
+          // par tous les membres ce tour-là (bras compris).
+          amountXof: potPerCycle,
           status: "PENDING",
           recordedById: user.id,
         },
@@ -187,7 +201,7 @@ export async function startTontineAction(tontineId: string): Promise<ActionResul
           tontineId,
           cycleId: cycle.id,
           membershipId: m.id,
-          amountExpectedXof: amountExpected,
+          amountExpectedXof: amountExpectedByMembershipId.get(m.id)!,
           status: "DUE" as const,
         })),
       });
@@ -352,6 +366,79 @@ export async function removeMemberAction(
   });
 
   revalidatePath(`/tontines/${target.tontineId}/membres`);
+  return { ok: true, data: undefined };
+}
+
+export async function updateMemberBrasAction(
+  membershipId: string,
+  bras: number
+): Promise<ActionResult> {
+  if (!Number.isInteger(bras) || bras < 1 || bras > 10) {
+    return fail("Le nombre de bras doit être un entier entre 1 et 10.");
+  }
+
+  const target = await prisma.tontineMembership.findUniqueOrThrow({
+    where: { id: membershipId },
+    include: { tontine: true },
+  });
+  const { user } = await requireMembership(target.tontineId, ["RESPONSABLE"]);
+
+  if (target.bras === bras) {
+    return { ok: true, data: undefined };
+  }
+  if (target.tontine.contributionAmountXof == null) {
+    return fail("Le montant de cotisation de la tontine n'est pas encore défini.");
+  }
+
+  const amountExpectedXof = target.tontine.contributionAmountXof * bras + target.tontine.feeAmountXof;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.tontineMembership.update({ where: { id: membershipId }, data: { bras } });
+
+    // On ne touche qu'aux cotisations futures/non commencées (aucun paiement confirmé) : les
+    // cotisations déjà payées, même partiellement, restent inchangées pour ne pas perturber
+    // l'historique financier.
+    const affected = await tx.contribution.findMany({
+      where: { membershipId, status: "DUE", amountConfirmedXof: 0 },
+      select: { id: true, cycleId: true },
+    });
+
+    if (affected.length === 0) return;
+
+    await tx.contribution.updateMany({
+      where: { id: { in: affected.map((c) => c.id) } },
+      data: { amountExpectedXof },
+    });
+
+    // Le pot de chaque tour concerné change avec la cotisation du membre : on recalcule le
+    // versement correspondant, uniquement s'il n'a pas encore été confirmé/versé.
+    const cycleIds = [...new Set(affected.map((c) => c.cycleId))];
+    for (const cycleId of cycleIds) {
+      const payout = await tx.payout.findUnique({ where: { cycleId } });
+      if (!payout || payout.status !== "PENDING") continue;
+
+      const contributions = await tx.contribution.findMany({
+        where: { cycleId },
+        select: { amountExpectedXof: true },
+      });
+      const potPerCycle = contributions.reduce((sum, c) => sum + c.amountExpectedXof, 0);
+
+      await tx.payout.update({ where: { id: payout.id }, data: { amountXof: potPerCycle } });
+    }
+  });
+
+  await writeAuditLog({
+    tontineId: target.tontineId,
+    userId: user.id,
+    action: "member.update_bras",
+    entityType: "TontineMembership",
+    entityId: membershipId,
+    metadata: { bras },
+  });
+
+  revalidatePath(`/tontines/${target.tontineId}/membres`);
+  revalidatePath(`/tontines/${target.tontineId}/cotisations`);
+  revalidatePath(`/tontines/${target.tontineId}/calendrier`);
   return { ok: true, data: undefined };
 }
 

@@ -230,6 +230,9 @@ model TontineMembership {
   leftReason   String?
   // position par défaut dans l'ordre des bénéficiaires (peut être redéfinie dans BeneficiaryOrder)
   displayOrder Int               @default(0)
+  // nombre de "bras" (parts) détenus par ce membre : multiplie sa cotisation attendue à chaque
+  // tour, mais ne lui donne qu'un seul tour de bénéficiaire (pas de tours supplémentaires).
+  bras         Int               @default(1)
 
   contributions     Contribution[]
   payoutsReceived   Payout[]

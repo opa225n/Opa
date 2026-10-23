@@ -41,7 +41,9 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
     fullName: m.user.fullName,
     phone: m.user.phone,
     isSelf: m.userId === user.id,
+    bras: m.bras,
   }));
+  const canEditBras = membership.role === "RESPONSABLE";
 
   return (
     <div className="flex flex-col gap-6">
@@ -101,6 +103,8 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
             {canReorder
               ? "Ordre des bénéficiaires : utilisez les flèches pour réorganiser avant de démarrer la tontine."
               : "Ordre des bénéficiaires, verrouillé depuis le démarrage de la tontine."}
+            {canEditBras &&
+              " Un membre à plusieurs bras cotise N fois le montant de base à chaque tour, mais ne reçoit qu'un seul tour."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -109,6 +113,7 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
             initialMembers={memberRows}
             canManage={canManage && tontine.status === "DRAFT"}
             canReorder={canReorder}
+            canEditBras={canEditBras}
           />
         </CardContent>
       </Card>

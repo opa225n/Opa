@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { reorderMembersAction, removeMemberAction } from "@/app/actions/tontines";
+import { reorderMembersAction, removeMemberAction, updateMemberBrasAction } from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MEMBER_ROLE_LABELS } from "@/lib/labels";
@@ -12,6 +12,7 @@ export interface MemberRow {
   fullName: string;
   phone: string;
   isSelf: boolean;
+  bras: number;
 }
 
 export function MemberOrderList({
@@ -19,15 +20,26 @@ export function MemberOrderList({
   initialMembers,
   canManage,
   canReorder,
+  canEditBras,
 }: {
   tontineId: string;
   initialMembers: MemberRow[];
   canManage: boolean;
   canReorder: boolean;
+  canEditBras: boolean;
 }) {
   const [members, setMembers] = useState(initialMembers);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  function changeBras(membershipId: string, bras: number) {
+    if (!Number.isInteger(bras) || bras < 1 || bras > 10) return;
+    setMembers((prev) => prev.map((m) => (m.id === membershipId ? { ...m, bras } : m)));
+    startTransition(async () => {
+      const result = await updateMemberBrasAction(membershipId, bras);
+      if (!result.ok) setError(result.error);
+    });
+  }
 
   function move(index: number, direction: -1 | 1) {
     const target = index + direction;
@@ -73,6 +85,35 @@ export function MemberOrderList({
                 <p className="text-xs text-stone-500">{m.phone}</p>
               </div>
               <Badge variant="outline">{MEMBER_ROLE_LABELS[m.role]}</Badge>
+              {canEditBras ? (
+                <div className="flex items-center gap-1" aria-label="Nombre de bras">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending || m.bras <= 1}
+                    onClick={() => changeBras(m.id, m.bras - 1)}
+                    aria-label="Retirer un bras"
+                  >
+                    −
+                  </Button>
+                  <span className="min-w-[4.5rem] text-center text-xs text-stone-600">
+                    {m.bras} bras
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    disabled={isPending || m.bras >= 10}
+                    onClick={() => changeBras(m.id, m.bras + 1)}
+                    aria-label="Ajouter un bras"
+                  >
+                    +
+                  </Button>
+                </div>
+              ) : (
+                m.bras > 1 && <Badge variant="secondary">{m.bras} bras</Badge>
+              )}
             </div>
             <div className="flex items-center gap-1">
               {canReorder && (
