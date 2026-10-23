@@ -9,7 +9,8 @@ export default function SignUpPage() {
     <div className="flex flex-col gap-1">
       <h1 className="font-display text-2xl font-bold text-[var(--brand)]">Créer votre compte</h1>
       <p className="text-sm text-stone-500">
-        Rejoignez une tontine ou créez la vôtre en quelques étapes.
+        Cotisations, calendrier des tours, paiements et rapports : tout au même endroit, en
+        franc CFA, accessible depuis la Côte d&apos;Ivoire comme depuis la diaspora.
       </p>
 
       <div className="mt-4">
