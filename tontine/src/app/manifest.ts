@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Tontine CI",
     description:
       "Cotisations, calendrier des tours, paiements et rapports pour vos tontines, en franc CFA.",
-    start_url: "/",
+    start_url: "/inscription",
     scope: "/",
     display: "standalone",
     background_color: "#f7f3ea",
