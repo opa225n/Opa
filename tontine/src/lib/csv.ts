@@ -75,21 +75,35 @@ export function looksLikePhone(value: string): boolean {
 }
 
 /**
+ * Choisit, à défaut d'en-tête reconnu, la première colonne majoritairement remplie (plutôt que la
+ * colonne A systématiquement — fréquemment vide ou réservée à un numéro de ligne dans les tableurs
+ * faits à la main).
+ */
+function pickFallbackColumn(rows: string[][]): number {
+  const columnCount = rows.reduce((max, r) => Math.max(max, r.length), 0);
+  for (let col = 0; col < columnCount; col++) {
+    const filledCount = rows.filter((r) => (r[col] ?? "").length > 0).length;
+    if (filledCount >= rows.length / 2) return col;
+  }
+  return 0;
+}
+
+/**
  * Extrait les membres (nom + téléphone facultatif) d'une table déjà découpée en lignes/colonnes
- * (CSV ou feuille Excel) : détecte les en-têtes "Nom" et "Téléphone" si présents (nom retombe sur
- * la 1re colonne sinon ; téléphone est absent sans en-tête reconnu, trop ambigu à deviner par
- * position).
+ * (CSV ou feuille Excel) : détecte les en-têtes contenant "nom" / "téléphone" (ex: "NOM/SURNOMS",
+ * "N° TÉLÉPHONE") si présents ; sans en-tête reconnu, le nom retombe sur la première colonne
+ * majoritairement remplie et le téléphone reste absent (trop ambigu à deviner par position).
  */
 export function extractMembersFromRows(rawRows: string[][]): ImportedMemberRow[] {
   const rows = rawRows.map((r) => r.map((f) => f.trim())).filter((r) => r.some((f) => f.length > 0));
   if (rows.length === 0) return [];
 
   const firstRow = rows[0].map((f) => f.toLowerCase());
-  const nameHeaderIndex = firstRow.findIndex((f) => NAME_HEADER_CANDIDATES.includes(f));
-  const phoneHeaderIndex = firstRow.findIndex((f) => PHONE_HEADER_CANDIDATES.includes(f));
+  const nameHeaderIndex = firstRow.findIndex((f) => NAME_HEADER_CANDIDATES.some((c) => f.includes(c)));
+  const phoneHeaderIndex = firstRow.findIndex((f) => PHONE_HEADER_CANDIDATES.some((c) => f.includes(c)));
   const hasHeader = nameHeaderIndex !== -1 || phoneHeaderIndex !== -1;
-  const nameColumn = nameHeaderIndex !== -1 ? nameHeaderIndex : 0;
   const dataRows = hasHeader ? rows.slice(1) : rows;
+  const nameColumn = nameHeaderIndex !== -1 ? nameHeaderIndex : pickFallbackColumn(dataRows);
 
   return dataRows
     .map((r) => {

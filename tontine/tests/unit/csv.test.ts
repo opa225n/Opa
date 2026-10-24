@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toCsv, extractMembersFromCsv, looksLikePhone } from "@/lib/csv";
+import { toCsv, extractMembersFromCsv, extractMembersFromRows, looksLikePhone } from "@/lib/csv";
 
 describe("toCsv", () => {
   it("échappe les valeurs contenant un point-virgule ou un guillemet", () => {
@@ -50,6 +50,39 @@ describe("extractMembersFromCsv", () => {
   it("normalise les espaces/tirets/points d'un numéro saisi à la main", () => {
     const rows = extractMembersFromCsv("Nom,Téléphone\nAïcha Koné,07 00-00..00  90");
     expect(rows[0].contactPhone).toBe("07 00 00 00 90");
+  });
+
+  it("détecte un en-tête composé comme 'NOM/SURNOMS' (pas une égalité exacte avec 'nom')", () => {
+    const rows = extractMembersFromCsv("NOM/SURNOMS,SOMMES\nALI ET BLOUSE / 1,50 000 FCFA");
+    expect(rows).toEqual([{ fullName: "ALI ET BLOUSE / 1", contactPhone: undefined }]);
+  });
+});
+
+describe("extractMembersFromRows", () => {
+  it("ignore une colonne A vide et une ligne de titre vide avant le vrai en-tête (tableur fait main)", () => {
+    // Reproduit la structure réelle observée : ligne 1 entièrement vide, en-têtes en ligne 2
+    // avec la colonne A inutilisée (numérotation en colonne B, noms en colonne C).
+    const rows = [
+      ["", "", "", "", "", "", "", "", "", ""],
+      ["", "N°", "NOM/SURNOMS", "1", "2", "3", "SOMMES", "DATE/SIGNATURE1", "DETE/SIGNATURE 2", "DATE/SIGNATURE 3"],
+      ["", "1", "ALI ET BLOUSE / 1", "", "", "", "50 000 FCFA", "", "", ""],
+      ["", "2", "BAMORY / 2", "", "", "", "100 000 FCFA", "", "", ""],
+    ];
+    expect(extractMembersFromRows(rows)).toEqual([
+      { fullName: "ALI ET BLOUSE / 1", contactPhone: undefined },
+      { fullName: "BAMORY / 2", contactPhone: undefined },
+    ]);
+  });
+
+  it("sans en-tête reconnu, retombe sur la première colonne majoritairement remplie plutôt que la colonne A", () => {
+    const rows = [
+      ["", "Aïcha Koné"],
+      ["", "Boubacar Diabaté"],
+    ];
+    expect(extractMembersFromRows(rows)).toEqual([
+      { fullName: "Aïcha Koné", contactPhone: undefined },
+      { fullName: "Boubacar Diabaté", contactPhone: undefined },
+    ]);
   });
 });
 
