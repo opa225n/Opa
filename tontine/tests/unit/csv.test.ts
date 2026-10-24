@@ -99,6 +99,24 @@ describe("extractMembersFromRows", () => {
       { fullName: "Chantal Yao", contactPhone: undefined },
     ]);
   });
+
+  it("trouve le vrai en-tête sous une ligne d'en-tête générique auto-générée par Excel (tableau Excel sans noms de colonnes)", () => {
+    // Reproduit un fichier réel : un tableau Excel (ListObject) sans en-têtes personnalisés donne
+    // "Colonne1", "Colonne2"... en première ligne, et les vrais libellés apparaissent juste en
+    // dessous.
+    const rows = [
+      ["Colonne1", "Colonne2", "Colonne3"],
+      ["0", "NOMS /SURNOMS", "AFFIRMATION"],
+      ["1", "ALI BWM", ""],
+      ["2", "AMARA", ""],
+      ["3", "AROUNA 1", ""],
+    ];
+    expect(extractMembersFromRows(rows)).toEqual([
+      { fullName: "ALI BWM", contactPhone: undefined },
+      { fullName: "AMARA", contactPhone: undefined },
+      { fullName: "AROUNA 1", contactPhone: undefined },
+    ]);
+  });
 });
 
 describe("looksLikePhone", () => {

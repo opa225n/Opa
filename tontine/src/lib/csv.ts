@@ -74,11 +74,29 @@ export function looksLikePhone(value: string): boolean {
   return digits.length >= 8 && digits.length <= 13;
 }
 
-/** Vrai si toutes les valeurs non vides d'une colonne sont de purs nombres (ex: une numérotation de ligne). */
-function isPurelyNumericColumn(rows: string[][], col: number): boolean {
+/** Vrai si la quasi-totalité des valeurs non vides d'une colonne sont de purs nombres (ex: une numérotation de ligne). */
+function isMostlyNumericColumn(rows: string[][], col: number): boolean {
   const values = rows.map((r) => r[col] ?? "").filter((v) => v.length > 0);
   if (values.length === 0) return false;
-  return values.every((v) => /^\d+([.,]\d+)?$/.test(v));
+  const numericCount = values.filter((v) => /^\d+([.,]\d+)?$/.test(v)).length;
+  return numericCount / values.length >= 0.8;
+}
+
+const HEADER_SCAN_ROWS = 5;
+
+/**
+ * Cherche une ligne d'en-tête reconnaissable parmi les premières lignes (et non uniquement la
+ * toute première) : certains tableurs ont une ligne d'en-tête générique auto-générée par Excel
+ * ("Colonne1", "Colonne2"...) suivie d'une vraie ligne de libellés juste en dessous.
+ */
+function findHeaderRow(rows: string[][]): { rowIndex: number; nameCol: number; phoneCol: number } | null {
+  for (let i = 0; i < Math.min(HEADER_SCAN_ROWS, rows.length); i++) {
+    const row = rows[i].map((f) => f.toLowerCase());
+    const nameCol = row.findIndex((f) => NAME_HEADER_CANDIDATES.some((c) => f.includes(c)));
+    const phoneCol = row.findIndex((f) => PHONE_HEADER_CANDIDATES.some((c) => f.includes(c)));
+    if (nameCol !== -1 || phoneCol !== -1) return { rowIndex: i, nameCol, phoneCol };
+  }
+  return null;
 }
 
 /**
@@ -90,27 +108,27 @@ function pickFallbackColumn(rows: string[][]): number {
   const columnCount = rows.reduce((max, r) => Math.max(max, r.length), 0);
   for (let col = 0; col < columnCount; col++) {
     const filledCount = rows.filter((r) => (r[col] ?? "").length > 0).length;
-    if (filledCount >= rows.length / 2 && !isPurelyNumericColumn(rows, col)) return col;
+    if (filledCount >= rows.length / 2 && !isMostlyNumericColumn(rows, col)) return col;
   }
   return 0;
 }
 
 /**
  * Extrait les membres (nom + téléphone facultatif) d'une table déjà découpée en lignes/colonnes
- * (CSV ou feuille Excel) : détecte les en-têtes contenant "nom" / "téléphone" (ex: "NOM/SURNOMS",
- * "N° TÉLÉPHONE") si présents ; sans en-tête reconnu, le nom retombe sur la première colonne
- * majoritairement remplie et le téléphone reste absent (trop ambigu à deviner par position).
+ * (CSV ou feuille Excel) : cherche parmi les premières lignes un en-tête contenant "nom" /
+ * "téléphone" (ex: "NOM/SURNOMS", "N° TÉLÉPHONE") — y compris quand il est précédé d'une ligne
+ * d'en-tête générique auto-générée par Excel ("Colonne1", "Colonne2"...). Sans en-tête reconnu,
+ * le nom retombe sur la première colonne majoritairement remplie et pas purement numérique, et le
+ * téléphone reste absent (trop ambigu à deviner par position).
  */
 export function extractMembersFromRows(rawRows: string[][]): ImportedMemberRow[] {
   const rows = rawRows.map((r) => r.map((f) => f.trim())).filter((r) => r.some((f) => f.length > 0));
   if (rows.length === 0) return [];
 
-  const firstRow = rows[0].map((f) => f.toLowerCase());
-  const nameHeaderIndex = firstRow.findIndex((f) => NAME_HEADER_CANDIDATES.some((c) => f.includes(c)));
-  const phoneHeaderIndex = firstRow.findIndex((f) => PHONE_HEADER_CANDIDATES.some((c) => f.includes(c)));
-  const hasHeader = nameHeaderIndex !== -1 || phoneHeaderIndex !== -1;
-  const dataRows = hasHeader ? rows.slice(1) : rows;
-  const nameColumn = nameHeaderIndex !== -1 ? nameHeaderIndex : pickFallbackColumn(dataRows);
+  const header = findHeaderRow(rows);
+  const dataRows = header ? rows.slice(header.rowIndex + 1) : rows;
+  const phoneHeaderIndex = header?.phoneCol ?? -1;
+  const nameColumn = header && header.nameCol !== -1 ? header.nameCol : pickFallbackColumn(dataRows);
 
   return dataRows
     .map((r) => {

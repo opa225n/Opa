@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { readSheet } from "read-excel-file/browser";
+import readXlsxFile from "read-excel-file/browser";
 import { Upload, X, AlertTriangle } from "lucide-react";
 import { importManagedMembersAction } from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
@@ -56,10 +56,18 @@ export function ImportMembersForm({
     let extracted: ImportedMemberRow[];
     try {
       if (lowerName.endsWith(".xlsx")) {
-        const sheetRows = await readSheet(file);
-        extracted = extractMembersFromRows(
-          sheetRows.map((row) => row.map((cell) => (cell == null ? "" : String(cell))))
-        );
+        // Un classeur peut avoir plusieurs feuilles (ex: un brouillon et une version à jour) :
+        // on extrait chacune et on garde celle qui donne le plus de membres, plutôt que de
+        // supposer que la première feuille du classeur est la bonne.
+        const sheets = await readXlsxFile(file);
+        let best: ImportedMemberRow[] = [];
+        for (const { data } of sheets) {
+          const candidate = extractMembersFromRows(
+            data.map((row) => row.map((cell) => (cell == null ? "" : String(cell))))
+          );
+          if (candidate.length > best.length) best = candidate;
+        }
+        extracted = best;
       } else if (lowerName.endsWith(".csv")) {
         const text = await file.text();
         extracted = extractMembersFromCsv(text);
