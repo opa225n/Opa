@@ -84,6 +84,21 @@ describe("extractMembersFromRows", () => {
       { fullName: "Boubacar Diabaté", contactPhone: undefined },
     ]);
   });
+
+  it("sans en-tête reconnu, ignore une colonne de pure numérotation au profit de la colonne des noms", () => {
+    // Reproduit le bug réel : une colonne "N°" (1, 2, 3...) remplie à 100% ne doit pas être prise
+    // pour la colonne des noms si une colonne de texte existe par ailleurs.
+    const rows = [
+      ["1", "Aïcha Koné"],
+      ["2", "Boubacar Diabaté"],
+      ["3", "Chantal Yao"],
+    ];
+    expect(extractMembersFromRows(rows)).toEqual([
+      { fullName: "Aïcha Koné", contactPhone: undefined },
+      { fullName: "Boubacar Diabaté", contactPhone: undefined },
+      { fullName: "Chantal Yao", contactPhone: undefined },
+    ]);
+  });
 });
 
 describe("looksLikePhone", () => {

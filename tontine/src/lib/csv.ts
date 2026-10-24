@@ -74,16 +74,23 @@ export function looksLikePhone(value: string): boolean {
   return digits.length >= 8 && digits.length <= 13;
 }
 
+/** Vrai si toutes les valeurs non vides d'une colonne sont de purs nombres (ex: une numérotation de ligne). */
+function isPurelyNumericColumn(rows: string[][], col: number): boolean {
+  const values = rows.map((r) => r[col] ?? "").filter((v) => v.length > 0);
+  if (values.length === 0) return false;
+  return values.every((v) => /^\d+([.,]\d+)?$/.test(v));
+}
+
 /**
- * Choisit, à défaut d'en-tête reconnu, la première colonne majoritairement remplie (plutôt que la
- * colonne A systématiquement — fréquemment vide ou réservée à un numéro de ligne dans les tableurs
- * faits à la main).
+ * Choisit, à défaut d'en-tête reconnu, la première colonne majoritairement remplie et pas
+ * purement numérique (plutôt que la colonne A systématiquement, ou une colonne de simple
+ * numérotation de ligne — fréquentes dans les tableurs faits à la main).
  */
 function pickFallbackColumn(rows: string[][]): number {
   const columnCount = rows.reduce((max, r) => Math.max(max, r.length), 0);
   for (let col = 0; col < columnCount; col++) {
     const filledCount = rows.filter((r) => (r[col] ?? "").length > 0).length;
-    if (filledCount >= rows.length / 2) return col;
+    if (filledCount >= rows.length / 2 && !isPurelyNumericColumn(rows, col)) return col;
   }
   return 0;
 }
