@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { readSheet } from "read-excel-file/browser";
 import { Upload, X, AlertTriangle } from "lucide-react";
 import { importManagedMembersAction } from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { extractMembersFromCsv, looksLikePhone, type ImportedMemberRow } from "@/lib/csv";
+import { extractMembersFromCsv, extractMembersFromRows, looksLikePhone, type ImportedMemberRow } from "@/lib/csv";
 
 function normalizeForCompare(name: string) {
   return name.trim().toLowerCase();
@@ -51,13 +52,26 @@ export function ImportMembersForm({
     setError(null);
     setSuccess(null);
 
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Seuls les fichiers .csv sont acceptés (depuis Excel : Fichier > Enregistrer sous > CSV).");
+    const lowerName = file.name.toLowerCase();
+    let extracted: ImportedMemberRow[];
+    try {
+      if (lowerName.endsWith(".xlsx")) {
+        const sheetRows = await readSheet(file);
+        extracted = extractMembersFromRows(
+          sheetRows.map((row) => row.map((cell) => (cell == null ? "" : String(cell))))
+        );
+      } else if (lowerName.endsWith(".csv")) {
+        const text = await file.text();
+        extracted = extractMembersFromCsv(text);
+      } else {
+        setError("Seuls les fichiers .xlsx (Excel) et .csv sont acceptés.");
+        return;
+      }
+    } catch {
+      setError("Ce fichier n'a pas pu être lu — vérifiez qu'il n'est pas corrompu ou protégé par mot de passe.");
       return;
     }
 
-    const text = await file.text();
-    const extracted = extractMembersFromCsv(text);
     if (extracted.length === 0) {
       setError("Aucun nom trouvé dans ce fichier.");
       return;
@@ -101,17 +115,18 @@ export function ImportMembersForm({
         {success && <Alert variant="success">{success}</Alert>}
         <label className="flex w-fit cursor-pointer items-center gap-2 rounded-lg border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-600 hover:bg-stone-50">
           <Upload className="h-4 w-4 text-[var(--brand-gold)]" />
-          Importer une liste (.csv)
+          Importer une liste (.xlsx ou .csv)
           <input
             type="file"
-            accept=".csv,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel,text/plain"
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.csv,text/csv,text/comma-separated-values,application/csv,application/vnd.ms-excel,text/plain"
             className="hidden"
             onChange={handleFileChange}
           />
         </label>
         <p className="text-xs text-stone-400">
-          Colonnes &laquo;&nbsp;Nom&nbsp;&raquo; (ou 1re colonne) et &laquo;&nbsp;Téléphone&nbsp;&raquo;
-          (facultative, simple info de contact — jamais utilisée pour se connecter).
+          Fichier Excel (.xlsx) ou CSV. Colonnes &laquo;&nbsp;Nom&nbsp;&raquo; (ou 1re colonne) et
+          &laquo;&nbsp;Téléphone&nbsp;&raquo; (facultative, simple info de contact — jamais utilisée
+          pour se connecter).
         </p>
       </div>
     );

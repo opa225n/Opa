@@ -75,12 +75,13 @@ export function looksLikePhone(value: string): boolean {
 }
 
 /**
- * Extrait les membres (nom + téléphone facultatif) d'une table CSV : détecte les en-têtes
- * "Nom" et "Téléphone" si présents (nom retombe sur la 1re colonne sinon ; téléphone est absent
- * sans en-tête reconnu, trop ambigu à deviner par position).
+ * Extrait les membres (nom + téléphone facultatif) d'une table déjà découpée en lignes/colonnes
+ * (CSV ou feuille Excel) : détecte les en-têtes "Nom" et "Téléphone" si présents (nom retombe sur
+ * la 1re colonne sinon ; téléphone est absent sans en-tête reconnu, trop ambigu à deviner par
+ * position).
  */
-export function extractMembersFromCsv(text: string): ImportedMemberRow[] {
-  const rows = parseCsv(text).map((r) => r.map((f) => f.trim()));
+export function extractMembersFromRows(rawRows: string[][]): ImportedMemberRow[] {
+  const rows = rawRows.map((r) => r.map((f) => f.trim())).filter((r) => r.some((f) => f.length > 0));
   if (rows.length === 0) return [];
 
   const firstRow = rows[0].map((f) => f.toLowerCase());
@@ -99,4 +100,9 @@ export function extractMembersFromCsv(text: string): ImportedMemberRow[] {
       };
     })
     .filter((m) => m.fullName.length > 0);
+}
+
+/** Extrait les membres d'un texte CSV (voir {@link extractMembersFromRows}). */
+export function extractMembersFromCsv(text: string): ImportedMemberRow[] {
+  return extractMembersFromRows(parseCsv(text));
 }
