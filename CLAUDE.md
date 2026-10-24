@@ -6,20 +6,16 @@
 **Branch:** claude/tontine-ci-app
 
 **Recent commits:**
-- 6ca9a28 Make the sign-up page the actual homepage, drop the marketing landing page
-- 697aabb Give the profile page the same visual treatment as the rest of the app
-- 7be3a26 Cache-bust the PWA manifest link so reinstalled icons pick up the new start_url
-- 9a60368 Point the PWA start_url at /inscription
-- 9c84c5d Add month-grid view to the global calendar, matching the mockup
-
-**In-progress files (2):**
-- tontine/src/app/(app)/tontines/[id]/operations/page.tsx
-- tontine/src/app/(app)/tontines/[id]/reglement/page.tsx
+- eaecd60 Auto-group "Nom 1, Nom 2..." import rows into one multi-bras member
+- adf5ef3 Add a one-click cleanup for members from a mis-parsed CSV/Excel import
+- 71e3e96 Handle multi-sheet workbooks and Excel's auto-generated table headers
+- 7ceb917 Never fall back to a purely-numeric column for member names
+- 76af1aa Fix the member import hanging on larger lists (e.g. 56 rows)
 
 **Project reminders:**
 - Verify the file content before claiming an edit is done
 - Run tests before declaring task complete
 - Re-read CLAUDE.md if you're unsure of project conventions
 
-**Hook generated:** 2026-10-23 12:35:29 UTC
+**Hook generated:** 2026-10-24 21:43:30 UTC
 <!-- post-compact-recovery-end -->
