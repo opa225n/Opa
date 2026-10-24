@@ -1,20 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, X } from "lucide-react";
+import { Upload, X, AlertTriangle } from "lucide-react";
 import { importManagedMembersAction } from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { extractMembersFromCsv, type ImportedMemberRow } from "@/lib/csv";
+import { extractMembersFromCsv, looksLikePhone, type ImportedMemberRow } from "@/lib/csv";
 
-export function ImportMembersForm({ tontineId }: { tontineId: string }) {
+function normalizeForCompare(name: string) {
+  return name.trim().toLowerCase();
+}
+
+export function ImportMembersForm({
+  tontineId,
+  existingNames,
+}: {
+  tontineId: string;
+  existingNames: string[];
+}) {
   const router = useRouter();
   const [rows, setRows] = useState<ImportedMemberRow[]>([]);
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const existingNameSet = useMemo(
+    () => new Set(existingNames.map(normalizeForCompare)),
+    [existingNames]
+  );
+
+  const warnings = useMemo(() => {
+    const seenInFile = new Set<string>();
+    return rows.map((row) => {
+      const key = normalizeForCompare(row.fullName);
+      const isDuplicate = existingNameSet.has(key) || seenInFile.has(key);
+      seenInFile.add(key);
+      const hasBadPhone = Boolean(row.contactPhone) && !looksLikePhone(row.contactPhone!);
+      return { isDuplicate, hasBadPhone };
+    });
+  }, [rows, existingNameSet]);
+
+  const duplicateCount = warnings.filter((w) => w.isDuplicate).length;
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -95,18 +123,43 @@ export function ImportMembersForm({ tontineId }: { tontineId: string }) {
         {fileName} — {rows.length} membre(s) à importer
       </p>
       {error && <Alert variant="destructive">{error}</Alert>}
+      {duplicateCount > 0 && (
+        <Alert variant="warning">
+          {duplicateCount} nom(s) ressemblent à un membre déjà présent — vérifiez avant d&apos;importer
+          pour éviter un doublon.
+        </Alert>
+      )}
       <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
-        {rows.map((row, i) => (
-          <div key={i} className="flex items-center justify-between rounded-md bg-stone-50 px-2 py-1 text-sm">
-            <span>
-              {row.fullName}
-              {row.contactPhone && <span className="text-stone-400"> · {row.contactPhone}</span>}
-            </span>
-            <button type="button" onClick={() => removeRow(i)} aria-label={`Retirer ${row.fullName}`}>
-              <X className="h-3.5 w-3.5 text-stone-400 hover:text-red-600" />
-            </button>
-          </div>
-        ))}
+        {rows.map((row, i) => {
+          const warning = warnings[i];
+          return (
+            <div
+              key={i}
+              className={`flex items-center justify-between rounded-md px-2 py-1 text-sm ${
+                warning.isDuplicate ? "bg-amber-50" : "bg-stone-50"
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                {warning.isDuplicate && (
+                  <AlertTriangle
+                    className="h-3.5 w-3.5 shrink-0 text-amber-600"
+                    aria-label="Possible doublon"
+                  />
+                )}
+                {row.fullName}
+                {row.contactPhone && (
+                  <span className={warning.hasBadPhone ? "text-amber-600" : "text-stone-400"}>
+                    · {row.contactPhone}
+                    {warning.hasBadPhone && " (format inhabituel)"}
+                  </span>
+                )}
+              </span>
+              <button type="button" onClick={() => removeRow(i)} aria-label={`Retirer ${row.fullName}`}>
+                <X className="h-3.5 w-3.5 text-stone-400 hover:text-red-600" />
+              </button>
+            </div>
+          );
+        })}
       </div>
       <div className="flex gap-2">
         <Button size="sm" disabled={submitting || rows.length === 0} onClick={confirmImport}>

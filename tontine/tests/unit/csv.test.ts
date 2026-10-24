@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toCsv, extractMembersFromCsv } from "@/lib/csv";
+import { toCsv, extractMembersFromCsv, looksLikePhone } from "@/lib/csv";
 
 describe("toCsv", () => {
   it("échappe les valeurs contenant un point-virgule ou un guillemet", () => {
@@ -45,5 +45,22 @@ describe("extractMembersFromCsv", () => {
     const rows = extractMembersFromCsv("Nom,Téléphone\nAïcha Koné,\nBoubacar Diabaté,0700000002");
     expect(rows[0]).toEqual({ fullName: "Aïcha Koné", contactPhone: undefined });
     expect(rows[1]).toEqual({ fullName: "Boubacar Diabaté", contactPhone: "0700000002" });
+  });
+
+  it("normalise les espaces/tirets/points d'un numéro saisi à la main", () => {
+    const rows = extractMembersFromCsv("Nom,Téléphone\nAïcha Koné,07 00-00..00  90");
+    expect(rows[0].contactPhone).toBe("07 00 00 00 90");
+  });
+});
+
+describe("looksLikePhone", () => {
+  it("accepte un numéro ivoirien classique, avec ou sans indicatif", () => {
+    expect(looksLikePhone("0700000090")).toBe(true);
+    expect(looksLikePhone("+225 07 00 00 00 90")).toBe(true);
+  });
+
+  it("rejette un texte qui n'est manifestement pas un numéro", () => {
+    expect(looksLikePhone("Abidjan")).toBe(false);
+    expect(looksLikePhone("12")).toBe(false);
   });
 });

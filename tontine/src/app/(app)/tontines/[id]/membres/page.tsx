@@ -97,7 +97,7 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
           <CardContent className="flex flex-col gap-4">
             <AddManagedMemberForm tontineId={id} />
             <div className="border-t border-stone-100 pt-3">
-              <ImportMembersForm tontineId={id} />
+              <ImportMembersForm tontineId={id} existingNames={memberships.map((m) => m.user.fullName)} />
             </div>
           </CardContent>
         </Card>

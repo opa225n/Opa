@@ -63,6 +63,17 @@ export interface ImportedMemberRow {
   contactPhone?: string;
 }
 
+/** Normalise un numéro saisi à la main : espaces/points/tirets multiples réduits à un seul espace. */
+function normalizePhone(raw: string): string {
+  return raw.trim().replace(/[\s.-]+/g, " ");
+}
+
+/** Vérifie grossièrement qu'un numéro ressemble à un numéro ivoirien (8 à 13 chiffres, + facultatif). */
+export function looksLikePhone(value: string): boolean {
+  const digits = value.replace(/[^\d]/g, "");
+  return digits.length >= 8 && digits.length <= 13;
+}
+
 /**
  * Extrait les membres (nom + téléphone facultatif) d'une table CSV : détecte les en-têtes
  * "Nom" et "Téléphone" si présents (nom retombe sur la 1re colonne sinon ; téléphone est absent
@@ -80,9 +91,12 @@ export function extractMembersFromCsv(text: string): ImportedMemberRow[] {
   const dataRows = hasHeader ? rows.slice(1) : rows;
 
   return dataRows
-    .map((r) => ({
-      fullName: r[nameColumn] ?? "",
-      contactPhone: phoneHeaderIndex !== -1 ? r[phoneHeaderIndex] || undefined : undefined,
-    }))
+    .map((r) => {
+      const rawPhone = phoneHeaderIndex !== -1 ? r[phoneHeaderIndex] : undefined;
+      return {
+        fullName: r[nameColumn] ?? "",
+        contactPhone: rawPhone ? normalizePhone(rawPhone) : undefined,
+      };
+    })
     .filter((m) => m.fullName.length > 0);
 }
