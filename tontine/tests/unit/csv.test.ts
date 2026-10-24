@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { toCsv, extractMembersFromCsv, extractMembersFromRows, looksLikePhone } from "@/lib/csv";
+import {
+  toCsv,
+  extractMembersFromCsv,
+  extractMembersFromRows,
+  looksLikePhone,
+  groupMembersByBras,
+  extractBrasBase,
+} from "@/lib/csv";
 
 describe("toCsv", () => {
   it("échappe les valeurs contenant un point-virgule ou un guillemet", () => {
@@ -128,5 +135,50 @@ describe("looksLikePhone", () => {
   it("rejette un texte qui n'est manifestement pas un numéro", () => {
     expect(looksLikePhone("Abidjan")).toBe(false);
     expect(looksLikePhone("12")).toBe(false);
+  });
+});
+
+describe("extractBrasBase", () => {
+  it("retire un numéro final avec ou sans séparateur", () => {
+    expect(extractBrasBase("AROUNA 1")).toBe("AROUNA");
+    expect(extractBrasBase("YACOU bache2")).toBe("YACOU bache");
+    expect(extractBrasBase("DIAKITE . 1")).toBe("DIAKITE");
+    expect(extractBrasBase("DIAKITE .3")).toBe("DIAKITE");
+  });
+
+  it("laisse un nom sans numéro final inchangé", () => {
+    expect(extractBrasBase("DAKIN-KAYE")).toBe("DAKIN-KAYE");
+    expect(extractBrasBase("ETO'O")).toBe("ETO'O");
+  });
+});
+
+describe("groupMembersByBras", () => {
+  it("regroupe les lignes 'Nom N' en un seul membre avec le bon nombre de bras", () => {
+    const rows = [
+      { fullName: "AROUNA 1" },
+      { fullName: "AROUNA 2" },
+      { fullName: "AROUNA 3" },
+      { fullName: "BAMORY 1" },
+      { fullName: "BAMORY 2" },
+      { fullName: "ALI BWM" },
+    ];
+    expect(groupMembersByBras(rows)).toEqual([
+      { fullName: "AROUNA", bras: 3, contactPhone: undefined },
+      { fullName: "BAMORY", bras: 2, contactPhone: undefined },
+      { fullName: "ALI BWM", bras: 1, contactPhone: undefined },
+    ]);
+  });
+
+  it("regroupe aussi un même nom répété sans numéro", () => {
+    const rows = [{ fullName: "DAKIN-KAYE" }, { fullName: "DAKIN-KAYE" }];
+    expect(groupMembersByBras(rows)).toEqual([{ fullName: "DAKIN-KAYE", bras: 2, contactPhone: undefined }]);
+  });
+
+  it("conserve le premier téléphone non vide du groupe", () => {
+    const rows = [
+      { fullName: "AROUNA 1", contactPhone: undefined },
+      { fullName: "AROUNA 2", contactPhone: "0700000090" },
+    ];
+    expect(groupMembersByBras(rows)).toEqual([{ fullName: "AROUNA", bras: 2, contactPhone: "0700000090" }]);
   });
 });

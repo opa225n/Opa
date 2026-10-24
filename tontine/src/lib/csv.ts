@@ -145,3 +145,47 @@ export function extractMembersFromRows(rawRows: string[][]): ImportedMemberRow[]
 export function extractMembersFromCsv(text: string): ImportedMemberRow[] {
   return extractMembersFromRows(parseCsv(text));
 }
+
+export interface GroupedMemberRow {
+  fullName: string;
+  bras: number;
+  contactPhone?: string;
+}
+
+/**
+ * Nom de base d'une ligne "Nom N" (un bras d'un même cotisant listé comme une ligne séparée,
+ * convention vue dans certains tableurs de tontine) : retire un numéro final, précédé ou non d'un
+ * séparateur (espace, point, tiret, combinaison des trois — ex: "AROUNA 1", "DIAKITE . 3",
+ * "YACOU bache2"). Un nom sans numéro final est renvoyé tel quel.
+ */
+export function extractBrasBase(fullName: string): string {
+  const trimmed = fullName.trim();
+  const match = trimmed.match(/^(.*?)[\s.-]*(\d+)$/);
+  if (match && match[1].trim().length > 0) {
+    return match[1].trim();
+  }
+  return trimmed;
+}
+
+/**
+ * Regroupe les lignes "Nom 1", "Nom 2"... (ou un même nom répété tel quel) en un seul membre à
+ * plusieurs bras : convention observée dans certains tableurs de tontine où chaque bras d'un même
+ * cotisant est listé comme une ligne séparée au lieu d'un seul membre avec un compte de bras.
+ */
+export function groupMembersByBras(rows: ImportedMemberRow[]): GroupedMemberRow[] {
+  const order: string[] = [];
+  const groups = new Map<string, GroupedMemberRow>();
+  for (const row of rows) {
+    const base = extractBrasBase(row.fullName);
+    const key = base.toLowerCase();
+    const existing = groups.get(key);
+    if (existing) {
+      existing.bras += 1;
+      if (!existing.contactPhone && row.contactPhone) existing.contactPhone = row.contactPhone;
+    } else {
+      groups.set(key, { fullName: base, bras: 1, contactPhone: row.contactPhone });
+      order.push(key);
+    }
+  }
+  return order.map((key) => groups.get(key)!);
+}

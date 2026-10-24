@@ -14,6 +14,7 @@ import {
   type RecordPaymentInput,
 } from "@/lib/validations/tontine";
 import { buildRotativeCyclePlan, generateInvitationCode, recomputeContribution } from "@/lib/tontine-engine";
+import { extractBrasBase } from "@/lib/csv";
 
 type ActionResult<T = undefined> =
   | { ok: true; data: T }
@@ -533,6 +534,7 @@ const MAX_IMPORTED_MEMBERS = 100;
 export interface ImportedMemberRow {
   fullName: string;
   contactPhone?: string;
+  bras?: number;
 }
 
 export async function importManagedMembersAction(
@@ -540,7 +542,11 @@ export async function importManagedMembersAction(
   rows: ImportedMemberRow[]
 ): Promise<ActionResult<{ createdCount: number }>> {
   const members = rows
-    .map((r) => ({ fullName: r.fullName.trim(), contactPhone: r.contactPhone?.trim() || undefined }))
+    .map((r) => ({
+      fullName: r.fullName.trim(),
+      contactPhone: r.contactPhone?.trim() || undefined,
+      bras: r.bras && r.bras >= 1 && r.bras <= 10 ? Math.round(r.bras) : 1,
+    }))
     .filter((r) => r.fullName.length >= 2);
   if (members.length === 0) {
     return fail("Aucun nom valide à importer (2 caractères minimum).");
@@ -570,7 +576,7 @@ export async function importManagedMembersAction(
     async (tx) => {
       let count = 0;
       for (let i = 0; i < members.length; i++) {
-        const { fullName: name, contactPhone } = members[i];
+        const { fullName: name, contactPhone, bras } = members[i];
         const managedUser = await tx.user.create({
           data: {
             fullName: name,
@@ -591,6 +597,7 @@ export async function importManagedMembersAction(
             role: "MEMBRE",
             status: "ACTIVE",
             displayOrder: nextOrder,
+            bras,
           },
         });
         nextOrder += 1;
@@ -760,6 +767,73 @@ export async function removeBadImportedMembersAction(
 
   revalidatePath(`/tontines/${tontineId}/membres`);
   return { ok: true, data: { removedCount: badIds.length } };
+}
+
+/**
+ * Nettoyage ponctuel : fusionne les membres importés sous la forme "Nom 1", "Nom 2"... (chaque
+ * bras d'un même cotisant listé comme un membre séparé) en un seul membre avec le bon nombre de
+ * bras — même logique que l'import corrigé (cf. groupMembersByBras dans src/lib/csv.ts), appliquée
+ * ici aux membres déjà créés avant le correctif.
+ */
+export async function mergeBrasFromExistingImportAction(
+  tontineId: string
+): Promise<ActionResult<{ mergedCount: number; removedCount: number }>> {
+  const { user: actor } = await requireMembership(tontineId, ["RESPONSABLE"]);
+
+  const candidates = await prisma.tontineMembership.findMany({
+    where: { tontineId, status: "ACTIVE", user: { isManaged: true } },
+    include: { user: true },
+    orderBy: { displayOrder: "asc" },
+  });
+
+  const groups = new Map<string, typeof candidates>();
+  for (const m of candidates) {
+    const base = extractBrasBase(m.user.fullName).toLowerCase();
+    const list = groups.get(base) ?? [];
+    list.push(m);
+    groups.set(base, list);
+  }
+
+  let mergedCount = 0;
+  const leftIds: string[] = [];
+
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    const [keeper, ...rest] = list;
+    const base = extractBrasBase(keeper.user.fullName);
+    const totalBras = list.reduce((sum, m) => sum + m.bras, 0);
+
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: keeper.userId }, data: { fullName: base } }),
+      prisma.tontineMembership.update({
+        where: { id: keeper.id },
+        data: { bras: Math.min(totalBras, 10) },
+      }),
+    ]);
+    leftIds.push(...rest.map((m) => m.id));
+    mergedCount += 1;
+  }
+
+  if (leftIds.length > 0) {
+    await prisma.tontineMembership.updateMany({
+      where: { id: { in: leftIds } },
+      data: { status: "LEFT", leftAt: new Date(), leftReason: "Fusionné : bras du même membre regroupés" },
+    });
+  }
+
+  if (mergedCount > 0) {
+    await writeAuditLog({
+      tontineId,
+      userId: actor.id,
+      action: "member.merge_bras",
+      entityType: "TontineMembership",
+      entityId: tontineId,
+      metadata: { mergedCount, removedCount: leftIds.length },
+    });
+  }
+
+  revalidatePath(`/tontines/${tontineId}/membres`);
+  return { ok: true, data: { mergedCount, removedCount: leftIds.length } };
 }
 
 export async function updateMemberBrasAction(

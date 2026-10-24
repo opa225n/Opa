@@ -7,7 +7,14 @@ import { Upload, X, AlertTriangle } from "lucide-react";
 import { importManagedMembersAction } from "@/app/actions/tontines";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
-import { extractMembersFromCsv, extractMembersFromRows, looksLikePhone, type ImportedMemberRow } from "@/lib/csv";
+import {
+  extractMembersFromCsv,
+  extractMembersFromRows,
+  groupMembersByBras,
+  looksLikePhone,
+  type ImportedMemberRow,
+  type GroupedMemberRow,
+} from "@/lib/csv";
 
 function normalizeForCompare(name: string) {
   return name.trim().toLowerCase();
@@ -21,29 +28,41 @@ export function ImportMembersForm({
   existingNames: string[];
 }) {
   const router = useRouter();
-  const [rows, setRows] = useState<ImportedMemberRow[]>([]);
+  const [rawExtracted, setRawExtracted] = useState<ImportedMemberRow[]>([]);
+  const [grouped, setGrouped] = useState(true);
+  const [removedKeys, setRemovedKeys] = useState<Set<number>>(new Set());
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const ungroupedAsRows: GroupedMemberRow[] = useMemo(
+    () => rawExtracted.map((r) => ({ fullName: r.fullName, contactPhone: r.contactPhone, bras: 1 })),
+    [rawExtracted]
+  );
+  const groupedRows = useMemo(() => groupMembersByBras(rawExtracted), [rawExtracted]);
+  const hasGroupableRows = groupedRows.some((r) => r.bras > 1);
+
+  const allRows = grouped ? groupedRows : ungroupedAsRows;
+  const rows = allRows.filter((_, i) => !removedKeys.has(i));
 
   const existingNameSet = useMemo(
     () => new Set(existingNames.map(normalizeForCompare)),
     [existingNames]
   );
 
-  const warnings = useMemo(() => {
+  const allWarnings = useMemo(() => {
     const seenInFile = new Set<string>();
-    return rows.map((row) => {
+    return allRows.map((row, i) => {
       const key = normalizeForCompare(row.fullName);
-      const isDuplicate = existingNameSet.has(key) || seenInFile.has(key);
-      seenInFile.add(key);
+      const isDuplicate = !removedKeys.has(i) && (existingNameSet.has(key) || seenInFile.has(key));
+      if (!removedKeys.has(i)) seenInFile.add(key);
       const hasBadPhone = Boolean(row.contactPhone) && !looksLikePhone(row.contactPhone!);
       return { isDuplicate, hasBadPhone };
     });
-  }, [rows, existingNameSet]);
+  }, [allRows, existingNameSet, removedKeys]);
 
-  const duplicateCount = warnings.filter((w) => w.isDuplicate).length;
+  const duplicateCount = allWarnings.filter((w, i) => w.isDuplicate && !removedKeys.has(i)).length;
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -85,17 +104,25 @@ export function ImportMembersForm({
       return;
     }
     setFileName(file.name);
-    setRows(extracted);
+    setRawExtracted(extracted);
+    setGrouped(true);
+    setRemovedKeys(new Set());
   }
 
   function removeRow(index: number) {
-    setRows((prev) => prev.filter((_, i) => i !== index));
+    setRemovedKeys((prev) => new Set(prev).add(index));
+  }
+
+  function toggleGrouped(next: boolean) {
+    setGrouped(next);
+    setRemovedKeys(new Set());
   }
 
   function cancel() {
-    setRows([]);
+    setRawExtracted([]);
     setFileName(null);
     setError(null);
+    setRemovedKeys(new Set());
   }
 
   async function confirmImport() {
@@ -108,15 +135,16 @@ export function ImportMembersForm({
         return;
       }
       setSuccess(`${result.data.createdCount} membre(s) importé(s).`);
-      setRows([]);
+      setRawExtracted([]);
       setFileName(null);
+      setRemovedKeys(new Set());
       router.refresh();
     } finally {
       setSubmitting(false);
     }
   }
 
-  if (rows.length === 0) {
+  if (rawExtracted.length === 0) {
     return (
       <div className="flex flex-col gap-2">
         {error && <Alert variant="destructive">{error}</Alert>}
@@ -146,6 +174,17 @@ export function ImportMembersForm({
         {fileName} — {rows.length} membre(s) à importer
       </p>
       {error && <Alert variant="destructive">{error}</Alert>}
+      {hasGroupableRows && (
+        <label className="flex items-center gap-2 text-sm text-stone-600">
+          <input
+            type="checkbox"
+            checked={grouped}
+            onChange={(e) => toggleGrouped(e.target.checked)}
+          />
+          Regrouper les lignes &laquo;&nbsp;Nom 1, Nom 2...&nbsp;&raquo; en un seul membre à
+          plusieurs bras (même cotisant)
+        </label>
+      )}
       {duplicateCount > 0 && (
         <Alert variant="warning">
           {duplicateCount} nom(s) ressemblent à un membre déjà présent — vérifiez avant d&apos;importer
@@ -153,27 +192,29 @@ export function ImportMembersForm({
         </Alert>
       )}
       <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
-        {rows.map((row, i) => {
-          const warning = warnings[i];
+        {allRows.map((row, i) => {
+          if (removedKeys.has(i)) return null;
+          const warning = allWarnings[i];
           return (
             <div
               key={i}
               className={`flex items-center justify-between rounded-md px-2 py-1 text-sm ${
-                warning.isDuplicate ? "bg-amber-50" : "bg-stone-50"
+                warning?.isDuplicate ? "bg-amber-50" : "bg-stone-50"
               }`}
             >
               <span className="flex items-center gap-1.5">
-                {warning.isDuplicate && (
+                {warning?.isDuplicate && (
                   <AlertTriangle
                     className="h-3.5 w-3.5 shrink-0 text-amber-600"
                     aria-label="Possible doublon"
                   />
                 )}
                 {row.fullName}
+                {row.bras > 1 && <span className="text-[var(--brand-gold)]"> · {row.bras} bras</span>}
                 {row.contactPhone && (
-                  <span className={warning.hasBadPhone ? "text-amber-600" : "text-stone-400"}>
+                  <span className={warning?.hasBadPhone ? "text-amber-600" : "text-stone-400"}>
                     · {row.contactPhone}
-                    {warning.hasBadPhone && " (format inhabituel)"}
+                    {warning?.hasBadPhone && " (format inhabituel)"}
                   </span>
                 )}
               </span>
