@@ -13,7 +13,7 @@ export default function HomePage() {
       <div aria-hidden className="h-8" />
 
       <div className="relative flex flex-col items-center gap-5">
-        <TontineMark size={72} />
+        <TontineMark size={140} />
         <div>
           <h1 className="font-[family-name:var(--font-fraunces)] text-4xl font-semibold tracking-tight">
             Tontine CI
