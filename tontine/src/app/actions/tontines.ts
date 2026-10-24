@@ -716,6 +716,52 @@ export async function removeMemberAction(
   return { ok: true, data: undefined };
 }
 
+/**
+ * Nettoyage ponctuel : retire les membres créés par un import CSV/Excel dont le "nom" est en fait
+ * un numéro de ligne ou un en-tête générique Excel ("Colonne1"...) — bug corrigé dans
+ * importManagedMembersAction, cette action permet de nettoyer les imports déjà faits avant le
+ * correctif sans passer par un retrait un par un.
+ */
+export async function removeBadImportedMembersAction(
+  tontineId: string
+): Promise<ActionResult<{ removedCount: number }>> {
+  const { user: actor } = await requireMembership(tontineId, ["RESPONSABLE"]);
+
+  const candidates = await prisma.tontineMembership.findMany({
+    where: {
+      tontineId,
+      status: "ACTIVE",
+      user: { isManaged: true },
+    },
+    include: { user: true },
+  });
+
+  const badIds = candidates
+    .filter((m) => /^\d+$/.test(m.user.fullName.trim()) || /^colonne/i.test(m.user.fullName.trim()))
+    .map((m) => m.id);
+
+  if (badIds.length === 0) {
+    return { ok: true, data: { removedCount: 0 } };
+  }
+
+  await prisma.tontineMembership.updateMany({
+    where: { id: { in: badIds } },
+    data: { status: "LEFT", leftAt: new Date(), leftReason: "Nettoyage d'un import CSV/Excel mal interprété" },
+  });
+
+  await writeAuditLog({
+    tontineId,
+    userId: actor.id,
+    action: "member.remove_bad_import",
+    entityType: "TontineMembership",
+    entityId: tontineId,
+    metadata: { removedCount: badIds.length },
+  });
+
+  revalidatePath(`/tontines/${tontineId}/membres`);
+  return { ok: true, data: { removedCount: badIds.length } };
+}
+
 export async function updateMemberBrasAction(
   membershipId: string,
   bras: number

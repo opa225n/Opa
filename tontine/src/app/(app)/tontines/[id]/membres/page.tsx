@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { InviteForm } from "./invite-form";
 import { AddManagedMemberForm } from "./add-managed-member-form";
 import { ImportMembersForm } from "./import-members-form";
+import { CleanupBadImportsButton } from "./cleanup-bad-imports-button";
 import { MemberOrderList } from "./member-order-list";
 import { GroupsManager } from "./groups-manager";
 import { revokeInvitationAction } from "@/app/actions/tontines";
@@ -99,6 +100,11 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
             <div className="border-t border-stone-100 pt-3">
               <ImportMembersForm tontineId={id} existingNames={memberships.map((m) => m.user.fullName)} />
             </div>
+            {membership.role === "RESPONSABLE" && (
+              <div className="border-t border-stone-100 pt-3">
+                <CleanupBadImportsButton tontineId={id} />
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
