@@ -557,38 +557,49 @@ export async function importManagedMembersAction(
   });
   let nextOrder = (maxOrder._max.displayOrder ?? 0) + 1;
 
-  const createdCount = await prisma.$transaction(async (tx) => {
-    let count = 0;
-    for (const { fullName: name, contactPhone } of members) {
-      // Mot de passe aléatoire inutilisable, même garde que addManagedMemberAction.
-      const passwordHash = await bcrypt.hash(`${randomUUID()}:${randomUUID()}`, 12);
-      const managedUser = await tx.user.create({
-        data: {
-          fullName: name,
-          phone: `managed:${randomUUID()}`,
-          passwordHash,
-          countryCode: "CI",
-          phoneVerified: true,
-          isManaged: true,
-          managedByUserId: actor.id,
-          termsAcceptedAt: new Date(),
-          profile: { create: { contactPhone } },
-        },
-      });
-      await tx.tontineMembership.create({
-        data: {
-          tontineId,
-          userId: managedUser.id,
-          role: "MEMBRE",
-          status: "ACTIVE",
-          displayOrder: nextOrder,
-        },
-      });
-      nextOrder += 1;
-      count += 1;
-    }
-    return count;
-  });
+  // Les hachages sont calculés avant la transaction (et à un coût bcrypt réduit) : le mot de
+  // passe est aléatoire et jamais utilisable pour se connecter (cf. garde isManaged dans
+  // src/lib/auth.ts), donc la résistance au brute-force d'un hachage coûteux n'apporte rien ici —
+  // en revanche, calculer 56+ hachages au coût 12 (~valeur sécurisée pour un vrai mot de passe)
+  // à l'intérieur d'une transaction Prisma dépasse largement son délai par défaut (5 s).
+  const passwordHashes = await Promise.all(
+    members.map(() => bcrypt.hash(`${randomUUID()}:${randomUUID()}`, 4))
+  );
+
+  const createdCount = await prisma.$transaction(
+    async (tx) => {
+      let count = 0;
+      for (let i = 0; i < members.length; i++) {
+        const { fullName: name, contactPhone } = members[i];
+        const managedUser = await tx.user.create({
+          data: {
+            fullName: name,
+            phone: `managed:${randomUUID()}`,
+            passwordHash: passwordHashes[i],
+            countryCode: "CI",
+            phoneVerified: true,
+            isManaged: true,
+            managedByUserId: actor.id,
+            termsAcceptedAt: new Date(),
+            profile: { create: { contactPhone } },
+          },
+        });
+        await tx.tontineMembership.create({
+          data: {
+            tontineId,
+            userId: managedUser.id,
+            role: "MEMBRE",
+            status: "ACTIVE",
+            displayOrder: nextOrder,
+          },
+        });
+        nextOrder += 1;
+        count += 1;
+      }
+      return count;
+    },
+    { timeout: 30000 }
+  );
 
   await writeAuditLog({
     tontineId,
