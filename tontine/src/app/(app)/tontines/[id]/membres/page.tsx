@@ -79,7 +79,7 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <InviteForm tontineId={id} appUrl={appUrl} />
+            <InviteForm tontineId={id} tontineName={tontine.name} appUrl={appUrl} />
           </CardContent>
         </Card>
       )}
