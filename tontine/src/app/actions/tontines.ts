@@ -15,6 +15,7 @@ import {
 } from "@/lib/validations/tontine";
 import { buildRotativeCyclePlan, generateInvitationCode, recomputeContribution } from "@/lib/tontine-engine";
 import { extractBrasBase } from "@/lib/csv";
+import { tallyBeneficiaryVotes } from "@/lib/beneficiary-vote";
 
 type ActionResult<T = undefined> =
   | { ok: true; data: T }
@@ -49,6 +50,7 @@ export async function createTontineAction(input: unknown): Promise<ActionResult<
       frequency: data.frequency,
       customWeekdays: data.customWeekdays,
       startDate: data.startDate,
+      beneficiarySelectionMode: data.beneficiarySelectionMode,
       createdById: user.id,
       memberships: {
         create: {
@@ -1169,4 +1171,154 @@ export async function confirmPayoutAction(
 
   revalidatePath(`/tontines/${payout.tontineId}/operations`);
   return { ok: true, data: undefined };
+}
+
+// ---------------------------------------------------------------------------
+// Vote collectif de bénéficiaire (Tontine.beneficiarySelectionMode = VOTE)
+// ---------------------------------------------------------------------------
+
+/**
+ * Un tour n'est ouvert au vote que s'il est le prochain tour PENDING de son lot (tontine entière,
+ * ou groupe si la tontine utilise des groupes) : le tour ACTIVE en cours est déjà décidé, et on ne
+ * laisse jamais voter plusieurs tours en avance pour éviter des échanges en cascade.
+ */
+async function getVotableCycle(tontineId: string, groupId: string | null) {
+  return prisma.tontineCycle.findFirst({
+    where: { tontineId, groupId, status: "PENDING" },
+    orderBy: { periodIndex: "asc" },
+    include: { beneficiaryOrder: true },
+  });
+}
+
+export async function voteForBeneficiaryAction(
+  tontineId: string,
+  cycleId: string,
+  candidateMembershipId: string
+): Promise<ActionResult<undefined>> {
+  const { membership: voter } = await requireMembership(tontineId);
+
+  const tontine = await prisma.tontine.findUnique({
+    where: { id: tontineId },
+    select: { beneficiarySelectionMode: true },
+  });
+  if (!tontine || tontine.beneficiarySelectionMode !== "VOTE") {
+    return fail("Le vote collectif n'est pas activé pour cette tontine.");
+  }
+
+  const cycle = await prisma.tontineCycle.findUnique({
+    where: { id: cycleId },
+    include: { beneficiaryOrder: true },
+  });
+  if (!cycle || cycle.tontineId !== tontineId) {
+    return fail("Tour introuvable.");
+  }
+  if (cycle.groupId !== voter.groupId) {
+    return fail("Vous ne faites pas partie du groupe concerné par ce tour.");
+  }
+
+  const votable = await getVotableCycle(tontineId, cycle.groupId);
+  if (!votable || votable.id !== cycleId) {
+    return fail("Seul le prochain tour peut être voté.");
+  }
+  if (votable.beneficiaryOrder?.voteClosedAt) {
+    return fail("Le vote pour ce tour est clôturé.");
+  }
+
+  const candidateIsEligible = await prisma.beneficiaryOrder.findFirst({
+    where: { membershipId: candidateMembershipId, cycle: { tontineId, groupId: cycle.groupId, status: "PENDING" } },
+    select: { id: true },
+  });
+  if (!candidateIsEligible) {
+    return fail("Ce candidat n'est pas éligible pour ce tour.");
+  }
+
+  await prisma.beneficiaryVote.upsert({
+    where: { cycleId_voterMembershipId: { cycleId, voterMembershipId: voter.id } },
+    create: { cycleId, voterMembershipId: voter.id, candidateMembershipId },
+    update: { candidateMembershipId },
+  });
+
+  revalidatePath(`/tontines/${tontineId}`);
+  return { ok: true, data: undefined };
+}
+
+export async function closeBeneficiaryVoteAction(
+  tontineId: string,
+  cycleId: string
+): Promise<ActionResult<{ winnerName: string; voteCount: number }>> {
+  const { user: actor } = await requireMembership(tontineId, ["RESPONSABLE"]);
+
+  const cycle = await prisma.tontineCycle.findUnique({
+    where: { id: cycleId },
+    include: { beneficiaryOrder: true },
+  });
+  if (!cycle || cycle.tontineId !== tontineId) {
+    return fail("Tour introuvable.");
+  }
+  const votable = await getVotableCycle(tontineId, cycle.groupId);
+  if (!votable || votable.id !== cycleId) {
+    return fail("Seul le prochain tour peut être clôturé.");
+  }
+  if (!votable.beneficiaryOrder) {
+    return fail("Ordre des bénéficiaires introuvable pour ce tour.");
+  }
+  if (votable.beneficiaryOrder.voteClosedAt) {
+    return fail("Le vote est déjà clôturé.");
+  }
+
+  // Tous les tours encore PENDING du même lot forment le vivier de candidats éligibles : la
+  // victoire d'un candidat qui n'est pas déjà assigné à CE tour échange les deux bénéficiaires
+  // (ce tour-ci ↔ le tour où ce candidat était assigné), pour ne jamais faire gagner deux tours
+  // à la même personne ni en priver une autre.
+  const pendingOrders = await prisma.beneficiaryOrder.findMany({
+    where: { cycle: { tontineId, groupId: cycle.groupId, status: "PENDING" } },
+    include: { membership: { include: { user: true } } },
+    orderBy: { cycle: { periodIndex: "asc" } },
+  });
+  const currentOrder = pendingOrders.find((o) => o.cycleId === cycleId);
+  if (!currentOrder) {
+    return fail("Ordre des bénéficiaires introuvable pour ce tour.");
+  }
+
+  const candidateIds = pendingOrders.map((o) => o.membershipId);
+  const votes = await prisma.beneficiaryVote.findMany({
+    where: { cycleId },
+    select: { candidateMembershipId: true },
+  });
+  const winnerId = tallyBeneficiaryVotes(candidateIds, votes);
+
+  if (winnerId !== currentOrder.membershipId) {
+    const winnerOrder = pendingOrders.find((o) => o.membershipId === winnerId)!;
+    await prisma.$transaction([
+      prisma.beneficiaryOrder.update({ where: { id: currentOrder.id }, data: { membershipId: winnerId } }),
+      prisma.beneficiaryOrder.update({
+        where: { id: winnerOrder.id },
+        data: { membershipId: currentOrder.membershipId },
+      }),
+      prisma.payout.update({ where: { cycleId: currentOrder.cycleId }, data: { membershipId: winnerId } }),
+      prisma.payout.update({
+        where: { cycleId: winnerOrder.cycleId },
+        data: { membershipId: currentOrder.membershipId },
+      }),
+    ]);
+  }
+
+  await prisma.beneficiaryOrder.update({
+    where: { id: currentOrder.id },
+    data: { assignedMethod: "VOTE", voteClosedAt: new Date(), changedReason: "Vote collectif des membres" },
+  });
+
+  const winner = pendingOrders.find((o) => o.membershipId === winnerId)!;
+
+  await writeAuditLog({
+    tontineId,
+    userId: actor.id,
+    action: "beneficiary.vote_closed",
+    entityType: "TontineCycle",
+    entityId: cycleId,
+    metadata: { winnerMembershipId: winnerId, voteCount: votes.length },
+  });
+
+  revalidatePath(`/tontines/${tontineId}`);
+  return { ok: true, data: { winnerName: winner.membership.user.fullName, voteCount: votes.length } };
 }

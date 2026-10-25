@@ -14,6 +14,7 @@ export const createTontineSchema = z
     feeAmountXof: z.coerce.number().int().min(0).default(0),
     latePenaltyAmountXof: z.coerce.number().int().min(0).default(0),
     latePenaltyGraceDays: z.coerce.number().int().min(0).default(0),
+    beneficiarySelectionMode: z.enum(["FIXED", "VOTE"]).default("FIXED"),
   })
   .refine((data) => data.frequency !== "CUSTOM_WEEKLY" || data.customWeekdays.length > 0, {
     message: "Sélectionnez au moins un jour de la semaine pour la fréquence personnalisée.",

@@ -39,6 +39,7 @@ export function CreateTontineForm() {
       latePenaltyAmountXof: 0,
       latePenaltyGraceDays: 0,
       startDate: defaultStartDate as unknown as Date,
+      beneficiarySelectionMode: "FIXED",
     },
   });
 
@@ -165,6 +166,18 @@ export function CreateTontineForm() {
             {...register("latePenaltyGraceDays")}
           />
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="beneficiarySelectionMode">Désignation du bénéficiaire à chaque tour</Label>
+        <select
+          id="beneficiarySelectionMode"
+          className="h-11 rounded-lg border border-stone-300 bg-white px-3"
+          {...register("beneficiarySelectionMode")}
+        >
+          <option value="FIXED">Ordre fixe, défini une fois pour toutes</option>
+          <option value="VOTE">Vote collectif avant chaque tour</option>
+        </select>
       </div>
 
       <Alert>

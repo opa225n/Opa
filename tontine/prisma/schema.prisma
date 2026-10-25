@@ -33,35 +33,35 @@ enum PlatformRole {
 }
 
 model User {
-  id               String       @id @default(cuid())
-  phone            String       @unique
-  email            String?      @unique
-  fullName         String
-  passwordHash     String
-  countryCode      String // pays de résidence, ISO 3166-1 alpha-2 (ex: CI, FR)
-  timezone         String       @default("Africa/Abidjan")
-  locale           String       @default("fr")
-  platformRole     PlatformRole @default(USER)
-  phoneVerified    Boolean      @default(false)
-  isDemo           Boolean      @default(false)
-  isSuspended      Boolean      @default(false)
-  suspendedAt      DateTime?
-  suspendedReason  String?
+  id                     String       @id @default(cuid())
+  phone                  String       @unique
+  email                  String?      @unique
+  fullName               String
+  passwordHash           String
+  countryCode            String // pays de résidence, ISO 3166-1 alpha-2 (ex: CI, FR)
+  timezone               String       @default("Africa/Abidjan")
+  locale                 String       @default("fr")
+  platformRole           PlatformRole @default(USER)
+  phoneVerified          Boolean      @default(false)
+  isDemo                 Boolean      @default(false)
+  isSuspended            Boolean      @default(false)
+  suspendedAt            DateTime?
+  suspendedReason        String?
   // Membre "sans compte" (surnom papier) ajouté par un responsable/secrétaire : pas de vrai
   // numéro de téléphone, ne peut jamais se connecter (cf. garde dans src/lib/auth.ts).
-  isManaged        Boolean      @default(false)
-  managedByUserId  String?
-  termsAcceptedAt  DateTime?
+  isManaged              Boolean      @default(false)
+  managedByUserId        String?
+  termsAcceptedAt        DateTime?
   // Consentement explicite donné à l'inscription : cotisations, statuts de paiement et dates
   // sont visibles par les membres de chaque tontine rejointe (règle de transparence).
   transparencyAcceptedAt DateTime?
-  onboardingSeenAt DateTime? // non-null une fois le guide de prise en main vu (sert à l'afficher une seule fois, par compte — pas par appareil)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  deletedAt        DateTime? // suppression logique
+  onboardingSeenAt       DateTime? // non-null une fois le guide de prise en main vu (sert à l'afficher une seule fois, par compte — pas par appareil)
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
+  deletedAt              DateTime? // suppression logique
 
-  managedBy               User?                     @relation("ManagedUsers", fields: [managedByUserId], references: [id], onDelete: SetNull)
-  managedUsers            User[]                    @relation("ManagedUsers")
+  managedBy               User?                    @relation("ManagedUsers", fields: [managedByUserId], references: [id], onDelete: SetNull)
+  managedUsers            User[]                   @relation("ManagedUsers")
   profile                 UserProfile?
   memberships             TontineMembership[]
   tontinesCreated         Tontine[]
@@ -87,18 +87,18 @@ model User {
 }
 
 model UserProfile {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  avatarUrl String?
-  address   String?
-  city      String?
-  bio       String?
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarUrl    String?
+  address      String?
+  city         String?
+  bio          String?
   // Numéro de contact informatif pour un membre "sans compte" (isManaged) : jamais utilisé pour
   // se connecter, juste affiché au responsable pour pouvoir le joindre.
   contactPhone String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model NotificationPreference {
@@ -169,13 +169,19 @@ enum TontineStatus {
   ARCHIVED
 }
 
+enum BeneficiarySelectionMode {
+  FIXED // ordre défini une fois pour toutes au démarrage (comportement historique)
+  VOTE // avant chaque tour, les membres votent collectivement pour le bénéficiaire
+}
+
 model Tontine {
-  id          String        @id @default(cuid())
-  name        String
-  type        TontineType
-  description String?
-  currency    String        @default("XOF")
-  status      TontineStatus @default(DRAFT)
+  id                       String                   @id @default(cuid())
+  name                     String
+  type                     TontineType
+  description              String?
+  currency                 String                   @default("XOF")
+  status                   TontineStatus            @default(DRAFT)
+  beneficiarySelectionMode BeneficiarySelectionMode @default(FIXED)
 
   // Paramètres de cotisation (sens dépend du type ; en unités entières XOF)
   contributionAmountXof    Int? // montant fixe (tontine rotative/épargne)
@@ -244,15 +250,15 @@ enum MembershipStatus {
 // restent définis au niveau de la tontine). Optionnel : une tontine sans groupe fonctionne
 // exactement comme avant (une seule rotation globale).
 model TontineGroup {
-  id        String  @id @default(cuid())
-  tontineId String
-  tontine   Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
-  name      String
+  id           String  @id @default(cuid())
+  tontineId    String
+  tontine      Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  name         String
   // Jour de la semaine propre à ce groupe (0=dimanche...6=samedi) quand la tontine est en
   // fréquence CUSTOM_WEEKLY (ex: groupe 1 = mardi, groupe 2 = samedi). Sinon ignoré : le
   // groupe suit la fréquence globale (DAILY/WEEKLY/MONTHLY), indépendamment des autres groupes.
   weekday      Int?
-  displayOrder Int @default(0)
+  displayOrder Int     @default(0)
 
   createdAt DateTime @default(now())
 
@@ -285,12 +291,14 @@ model TontineMembership {
   groupId      String?
   group        TontineGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
-  contributions     Contribution[]
-  payoutsReceived   Payout[]
-  beneficiaryOrders BeneficiaryOrder[]
-  rulesAcceptances  RulesAcceptance[]
-  loanRequests      Loan[]
-  disputesRaised    Dispute[]
+  contributions            Contribution[]
+  payoutsReceived          Payout[]
+  beneficiaryOrders        BeneficiaryOrder[]
+  rulesAcceptances         RulesAcceptance[]
+  loanRequests             Loan[]
+  disputesRaised           Dispute[]
+  beneficiaryVotesCast     BeneficiaryVote[]  @relation("BeneficiaryVoterMembership")
+  beneficiaryVotesReceived BeneficiaryVote[]  @relation("BeneficiaryCandidateMembership")
 
   @@unique([tontineId, userId])
   @@index([tontineId, status])
@@ -372,9 +380,9 @@ enum CycleStatus {
 }
 
 model TontineCycle {
-  id          String      @id @default(cuid())
+  id          String        @id @default(cuid())
   tontineId   String
-  tontine     Tontine     @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  tontine     Tontine       @relation(fields: [tontineId], references: [id], onDelete: Cascade)
   // null si la tontine ne découpe pas en groupes (comportement historique, un seul tour de
   // table pour toute la tontine). periodIndex est alors local à la tontine entière ; dès que
   // groupId est renseigné il redevient local à CE groupe (chaque groupe a ses propres 1, 2, 3...).
@@ -383,10 +391,11 @@ model TontineCycle {
   periodIndex Int // 1, 2, 3... (local à la tontine si pas de groupe, sinon local au groupe)
   periodStart DateTime
   periodDue   DateTime // échéance de cotisation
-  status      CycleStatus @default(PENDING)
-  createdAt   DateTime    @default(now())
+  status      CycleStatus   @default(PENDING)
+  createdAt   DateTime      @default(now())
 
   beneficiaryOrder BeneficiaryOrder?
+  beneficiaryVotes BeneficiaryVote[]
   contributions    Contribution[]
   payout           Payout?
 
@@ -407,11 +416,33 @@ model BeneficiaryOrder {
   cycle          TontineCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
   membershipId   String
   membership     TontineMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
-  assignedMethod String            @default("MANUAL") // MANUAL | RANDOM_DRAW
+  assignedMethod String            @default("MANUAL") // MANUAL | RANDOM_DRAW | VOTE
   confirmedAt    DateTime? // confirmation collective de l'ordre
   changedReason  String? // si modifié après démarrage, motif obligatoire
+  // Horodatage de clôture du vote collectif (Tontine.beneficiarySelectionMode = VOTE) pour ce
+  // tour : une fois renseigné, le vote est verrouillé (plus de vote ni de changement possible).
+  voteClosedAt   DateTime?
 
   @@index([tontineId])
+}
+
+// Vote collectif pour désigner le bénéficiaire d'un tour, quand
+// Tontine.beneficiarySelectionMode = VOTE. Un seul vote par membre et par tour (upsert pour
+// changer d'avis tant que le vote n'est pas clôturé) ; le dépouillement et le verrouillage se
+// font dans closeBeneficiaryVoteAction.
+model BeneficiaryVote {
+  id                    String            @id @default(cuid())
+  cycleId               String
+  cycle                 TontineCycle      @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  voterMembershipId     String
+  voterMembership       TontineMembership @relation("BeneficiaryVoterMembership", fields: [voterMembershipId], references: [id], onDelete: Cascade)
+  candidateMembershipId String
+  candidateMembership   TontineMembership @relation("BeneficiaryCandidateMembership", fields: [candidateMembershipId], references: [id], onDelete: Cascade)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@unique([cycleId, voterMembershipId])
+  @@index([cycleId])
 }
 
 // ---------------------------------------------------------------------------

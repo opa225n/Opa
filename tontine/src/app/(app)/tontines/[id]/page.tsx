@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatXof } from "@/lib/money";
 import { FREQUENCY_LABELS } from "@/lib/labels";
 import { StartTontineButton } from "./start-tontine-button";
+import { BeneficiaryVoteCard } from "./beneficiary-vote-card";
 
 export default async function TontineOverviewPage({
   params,
@@ -17,30 +18,53 @@ export default async function TontineOverviewPage({
   const { id } = await params;
   const { tontine, membership } = await getTontineContext(id);
 
-  const [memberCount, groups, activeCycles, nextCycles, pendingVerificationCount] = await Promise.all([
-    prisma.tontineMembership.count({ where: { tontineId: id, status: "ACTIVE" } }),
-    prisma.tontineGroup.findMany({ where: { tontineId: id }, orderBy: { displayOrder: "asc" } }),
-    // Avec des groupes, chaque groupe a son propre tour ACTIVE en parallèle — on les récupère
-    // tous plutôt qu'un seul (findFirst choisirait arbitrairement l'un d'eux).
-    prisma.tontineCycle.findMany({
-      where: { tontineId: id, status: "ACTIVE" },
-      include: {
-        beneficiaryOrder: { include: { membership: { include: { user: true } } } },
-        contributions: true,
-        payout: true,
-      },
-      orderBy: { periodIndex: "asc" },
-    }),
-    prisma.tontineCycle.findMany({
-      where: { tontineId: id, status: "PENDING" },
-      include: { beneficiaryOrder: { include: { membership: { include: { user: true } } } } },
-      orderBy: { periodIndex: "asc" },
-      distinct: ["groupId"],
-    }),
-    prisma.payment.count({
-      where: { contribution: { tontineId: id }, status: "DECLARED" },
-    }),
-  ]);
+  const [memberCount, groups, activeCycles, nextCycles, pendingVerificationCount, pendingOrders, pendingVotes] =
+    await Promise.all([
+      prisma.tontineMembership.count({ where: { tontineId: id, status: "ACTIVE" } }),
+      prisma.tontineGroup.findMany({ where: { tontineId: id }, orderBy: { displayOrder: "asc" } }),
+      // Avec des groupes, chaque groupe a son propre tour ACTIVE en parallèle — on les récupère
+      // tous plutôt qu'un seul (findFirst choisirait arbitrairement l'un d'eux).
+      prisma.tontineCycle.findMany({
+        where: { tontineId: id, status: "ACTIVE" },
+        include: {
+          beneficiaryOrder: { include: { membership: { include: { user: true } } } },
+          contributions: true,
+          payout: true,
+        },
+        orderBy: { periodIndex: "asc" },
+      }),
+      prisma.tontineCycle.findMany({
+        where: { tontineId: id, status: "PENDING" },
+        include: { beneficiaryOrder: { include: { membership: { include: { user: true } } } } },
+        orderBy: { periodIndex: "asc" },
+        distinct: ["groupId"],
+      }),
+      prisma.payment.count({
+        where: { contribution: { tontineId: id }, status: "DECLARED" },
+      }),
+      // Vivier de candidats du vote collectif (cf. BeneficiaryVoteCard) : tous les tours encore
+      // PENDING, groupés par lot plus bas. Inutile hors mode VOTE, mais la requête reste bon
+      // marché et évite une dépendance conditionnelle sur tontine.beneficiarySelectionMode ici.
+      prisma.beneficiaryOrder.findMany({
+        where: { cycle: { tontineId: id, status: "PENDING" } },
+        include: { cycle: true, membership: { include: { user: true } } },
+        orderBy: { cycle: { periodIndex: "asc" } },
+      }),
+      prisma.beneficiaryVote.findMany({
+        where: { cycle: { tontineId: id, status: "PENDING" } },
+        select: { cycleId: true, candidateMembershipId: true, voterMembershipId: true },
+      }),
+    ]);
+
+  const pendingOrdersByBatch = new Map<string, typeof pendingOrders>();
+  for (const o of pendingOrders) {
+    const key = o.cycle.groupId ?? "__default__";
+    pendingOrdersByBatch.set(key, [...(pendingOrdersByBatch.get(key) ?? []), o]);
+  }
+  const votesByCycle = new Map<string, typeof pendingVotes>();
+  for (const v of pendingVotes) {
+    votesByCycle.set(v.cycleId, [...(votesByCycle.get(v.cycleId) ?? []), v]);
+  }
 
   const expectedThisCycle = activeCycles.reduce(
     (sum, c) => sum + c.contributions.reduce((s, ctr) => s + ctr.amountExpectedXof, 0),
@@ -51,20 +75,36 @@ export default async function TontineOverviewPage({
     0
   );
 
-  const cycleSections =
-    groups.length > 0
-      ? groups.map((g) => ({
-          label: g.name,
-          current: activeCycles.find((c) => c.groupId === g.id),
-          next: nextCycles.find((c) => c.groupId === g.id),
-        }))
-      : [
-          {
-            label: null,
-            current: activeCycles[0],
-            next: nextCycles[0],
-          },
-        ];
+  const batches: { label: string | null; groupId: string | null }[] =
+    groups.length > 0 ? groups.map((g) => ({ label: g.name, groupId: g.id })) : [{ label: null, groupId: null }];
+
+  const cycleSections = batches.map(({ label, groupId }) => {
+    const candidateOrders = pendingOrdersByBatch.get(groupId ?? "__default__") ?? [];
+    const votableOrder = candidateOrders[0];
+    const isVotable =
+      tontine.beneficiarySelectionMode === "VOTE" && votableOrder != null && votableOrder.voteClosedAt == null;
+    return {
+      label,
+      current: activeCycles.find((c) => c.groupId === groupId),
+      next: nextCycles.find((c) => c.groupId === groupId),
+      vote: isVotable
+        ? {
+            cycleId: votableOrder.cycleId,
+            periodIndex: votableOrder.cycle.periodIndex,
+            candidates: candidateOrders.map((o) => ({
+              membershipId: o.membershipId,
+              fullName: o.membership.user.fullName,
+              voteCount: (votesByCycle.get(votableOrder.cycleId) ?? []).filter(
+                (v) => v.candidateMembershipId === o.membershipId
+              ).length,
+            })),
+            myVoteMembershipId:
+              (votesByCycle.get(votableOrder.cycleId) ?? []).find((v) => v.voterMembershipId === membership.id)
+                ?.candidateMembershipId ?? null,
+          }
+        : null,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -124,9 +164,20 @@ export default async function TontineOverviewPage({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-lg font-semibold text-stone-900">
-                    {section.next?.beneficiaryOrder?.membership.user.fullName ?? "Dernier tour en cours"}
-                  </p>
+                  {section.vote ? (
+                    <BeneficiaryVoteCard
+                      tontineId={id}
+                      cycleId={section.vote.cycleId}
+                      periodIndex={section.vote.periodIndex}
+                      candidates={section.vote.candidates}
+                      myVoteMembershipId={section.vote.myVoteMembershipId}
+                      canClose={membership.role === "RESPONSABLE"}
+                    />
+                  ) : (
+                    <p className="text-lg font-semibold text-stone-900">
+                      {section.next?.beneficiaryOrder?.membership.user.fullName ?? "Dernier tour en cours"}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </div>
