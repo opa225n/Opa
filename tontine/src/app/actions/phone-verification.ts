@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/rbac";
 import { createVerificationCode, verifyPhoneCode } from "@/lib/phone-verification";
-import { isSmsConfigured, sendVerificationSms } from "@/lib/sms";
+import { isMailerConfigured, sendVerificationEmail } from "@/lib/mailer";
 
 export type RequestPhoneVerificationResult = { ok: true; demoCode?: string } | { ok: false; error: string };
 
@@ -18,17 +18,18 @@ export async function requestPhoneVerificationAction(): Promise<RequestPhoneVeri
 
   const { code } = await createVerificationCode(user.id);
 
-  if (!isSmsConfigured()) {
+  // L'email est obligatoire à l'inscription depuis l'ajout de ce canal de vérification (l'envoi
+  // de SMS dépend du solde du portefeuille Bird, celui des emails est beaucoup moins coûteux et
+  // déjà fonctionnel) ; un compte créé avant ce changement peut encore ne pas en avoir.
+  if (!dbUser.email || !isMailerConfigured()) {
     return { ok: true, demoCode: code };
   }
 
   try {
-    await sendVerificationSms({ to: dbUser.phone, code });
+    await sendVerificationEmail({ to: dbUser.email, code });
     return { ok: true };
   } catch (error) {
-    // Le pays de destination ou le portefeuille Bird peuvent ne pas être prêts : on retombe sur
-    // le mode démo plutôt que de laisser l'utilisateur bloqué.
-    console.error("[phone-verification] Échec de l'envoi SMS, repli en mode démo.", error);
+    console.error("[phone-verification] Échec de l'envoi de l'email de vérification, repli en mode démo.", error);
     return { ok: true, demoCode: code };
   }
 }

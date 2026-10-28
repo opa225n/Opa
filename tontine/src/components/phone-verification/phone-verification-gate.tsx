@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
 import { TontineMark } from "@/components/brand/logo";
 
-export function PhoneVerificationGate({ phone }: { phone: string }) {
+export function PhoneVerificationGate({ phone, email }: { phone: string; email: string | null }) {
   const router = useRouter();
   const [demoCode, setDemoCode] = useState<string | null>(null);
   const [code, setCode] = useState("");
@@ -32,7 +32,7 @@ export function PhoneVerificationGate({ phone }: { phone: string }) {
         return;
       }
       setDemoCode(result.demoCode ?? null);
-      setInfo(result.demoCode ? null : "Code envoyé par SMS.");
+      setInfo(result.demoCode ? null : "Code envoyé par e-mail.");
       setRequested(true);
     } finally {
       setSending(false);
@@ -66,11 +66,17 @@ export function PhoneVerificationGate({ phone }: { phone: string }) {
         <div className="flex flex-col items-center gap-3 text-center">
           <TontineMark size={32} />
           <h1 className="font-display text-lg font-semibold text-[var(--foreground)]">
-            Vérifiez votre numéro
+            Vérifiez votre compte
           </h1>
           <p className="text-sm text-stone-600">
-            Entrez le code à 6 chiffres envoyé au <strong>{phone}</strong> pour activer votre
-            compte.
+            Entrez le code à 6 chiffres envoyé {email ? (
+              <>
+                à <strong>{email}</strong>
+              </>
+            ) : (
+              "par e-mail"
+            )}{" "}
+            pour activer le compte lié au numéro <strong>{phone}</strong>.
           </p>
         </div>
 
@@ -86,7 +92,7 @@ export function PhoneVerificationGate({ phone }: { phone: string }) {
         )}
         {demoCode && (
           <Alert variant="warning" className="mt-4">
-            [DÉMO] Aucun service SMS configuré : votre code est <strong>{demoCode}</strong>
+            [DÉMO] Envoi d&apos;e-mail indisponible : votre code est <strong>{demoCode}</strong>
           </Alert>
         )}
 

@@ -57,3 +57,41 @@ export async function sendPasswordResetEmail({
 
   return { sent: true };
 }
+
+interface SendVerificationEmailParams {
+  to: string;
+  code: string;
+}
+
+export async function sendVerificationEmail({
+  to,
+  code,
+}: SendVerificationEmailParams): Promise<{ sent: boolean }> {
+  const apiKey = process.env.BIRD_API_KEY;
+  const fromEmail = process.env.BIRD_FROM_EMAIL;
+  if (!apiKey || !fromEmail) {
+    return { sent: false };
+  }
+
+  const response = await fetch(`${getBirdApiBase(apiKey)}/v1/email/messages`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: { email: fromEmail, name: "Tontine CI" },
+      to: [to],
+      subject: `${code} est votre code de vérification — Tontine CI`,
+      html: `<p>Votre code de vérification Tontine CI :</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${code}</p><p>Ce code expire dans quelques minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>`,
+      text: `Votre code de vérification Tontine CI : ${code}\n\nCe code expire dans quelques minutes. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.`,
+    }),
+  });
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Échec de l'envoi via Bird (${response.status}): ${body}`);
+  }
+
+  return { sent: true };
+}

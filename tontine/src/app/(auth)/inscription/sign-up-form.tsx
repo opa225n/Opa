@@ -173,9 +173,10 @@ export function SignUpForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email" className="font-semibold text-[var(--brand)]">
-          E-mail (facultatif)
+          E-mail
         </Label>
         <Input id="email" type="email" autoComplete="email" className={fieldInputClass} {...register("email")} />
+        <p className="text-xs text-stone-500">Utilisé pour vérifier votre compte à l&apos;inscription.</p>
         {errors.email && <p className="text-sm text-red-600">{errors.email.message}</p>}
       </div>
 

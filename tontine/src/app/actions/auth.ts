@@ -25,6 +25,10 @@ export async function signUpAction(input: unknown): Promise<SignUpResult> {
   if (existing) {
     return { ok: false, error: "Un compte existe déjà avec ce numéro de téléphone." };
   }
+  const existingEmail = await prisma.user.findUnique({ where: { email } });
+  if (existingEmail) {
+    return { ok: false, error: "Un compte existe déjà avec cette adresse e-mail." };
+  }
 
   const passwordHash = await bcrypt.hash(password, 12);
 
@@ -32,7 +36,7 @@ export async function signUpAction(input: unknown): Promise<SignUpResult> {
     data: {
       fullName,
       phone,
-      email: email && email.length > 0 ? email : null,
+      email,
       passwordHash,
       countryCode,
       termsAcceptedAt: new Date(),

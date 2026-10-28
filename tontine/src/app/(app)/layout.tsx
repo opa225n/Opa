@@ -29,11 +29,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const currentUser = await prisma.user.findUnique({
     where: { id: session.user.id },
-    select: { onboardingSeenAt: true, phoneVerified: true, phone: true },
+    select: { onboardingSeenAt: true, phoneVerified: true, phone: true, email: true },
   });
 
   if (currentUser && !currentUser.phoneVerified) {
-    return <PhoneVerificationGate phone={currentUser.phone} />;
+    return <PhoneVerificationGate phone={currentUser.phone} email={currentUser.email} />;
   }
 
   const unreadNotifications = await prisma.notification.count({

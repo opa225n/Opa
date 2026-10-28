@@ -9,7 +9,7 @@ export const phoneSchema = z
 export const signUpSchema = z.object({
   fullName: z.string().trim().min(2, "Nom complet requis (2 caractères minimum)."),
   phone: phoneSchema,
-  email: z.union([z.email("Adresse e-mail invalide."), z.literal("")]).optional(),
+  email: z.email("Adresse e-mail invalide."),
   password: z
     .string()
     .min(8, "Le mot de passe doit contenir au moins 8 caractères.")
