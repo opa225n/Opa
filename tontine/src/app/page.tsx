@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TontineMark } from "@/components/brand/logo";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
 
 export default function HomePage() {
   return (
@@ -40,6 +41,10 @@ export default function HomePage() {
             Se connecter
           </Link>
         </p>
+      </div>
+
+      <div className="relative mt-2">
+        <InstallAppButton />
       </div>
     </main>
   );
