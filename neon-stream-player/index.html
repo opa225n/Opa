@@ -485,6 +485,8 @@ function setCategory(cat) {
   renderChannels();
 }
 
+const RENDER_LIMIT = 200;
+
 function renderChannels() {
   const search = document.getElementById('searchInput').value.toLowerCase();
   const group = document.getElementById('groupFilter').value;
@@ -493,7 +495,8 @@ function renderChannels() {
     filtered = filtered.filter(c => c.category === currentCategory);
   }
   document.getElementById('channelCount').textContent = filtered.length + (filtered.length === 1 ? ' chaîne' : ' chaînes');
-  document.getElementById('channelList').innerHTML = filtered.map(c => `
+  const overflow = filtered.length - RENDER_LIMIT;
+  document.getElementById('channelList').innerHTML = filtered.slice(0, RENDER_LIMIT).map(c => `
     <div class="channel-item flex items-center gap-2 p-2 rounded-lg cursor-pointer ${currentChannel?.id === c.id ? 'active' : ''}" onclick="playChannel('${c.id}')">
       ${c.logo ? `<img src="${escapeHtml(c.logo)}" class="w-8 h-8 rounded object-contain bg-black/30" onerror="this.style.display='none'" />` : `<div class="w-8 h-8 rounded bg-slate-700 flex items-center justify-center text-xs">${escapeHtml((c.name || '?').charAt(0) || '?')}</div>`}
       <div class="flex-1 min-w-0">
@@ -501,10 +504,14 @@ function renderChannels() {
         <div class="text-[10px] text-slate-500">${escapeHtml(c.group)}</div>
       </div>
     </div>
-  `).join('');
+  `).join('') + (overflow > 0 ? `<div class="text-center text-xs text-slate-500 py-3">+ ${overflow} autres chaînes — affine ta recherche ou choisis un groupe</div>` : '');
 }
 
-function filterChannels() { renderChannels(); }
+let filterDebounceTimer = null;
+function filterChannels() {
+  clearTimeout(filterDebounceTimer);
+  filterDebounceTimer = setTimeout(renderChannels, 150);
+}
 
 function playChannel(id) {
   const ch = channels.find(c => c.id === id);
