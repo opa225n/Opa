@@ -6,16 +6,16 @@
 **Branch:** claude/tontine-ci-app
 
 **Recent commits:**
-- eaecd60 Auto-group "Nom 1, Nom 2..." import rows into one multi-bras member
-- adf5ef3 Add a one-click cleanup for members from a mis-parsed CSV/Excel import
-- 71e3e96 Handle multi-sheet workbooks and Excel's auto-generated table headers
-- 7ceb917 Never fall back to a purely-numeric column for member names
-- 76af1aa Fix the member import hanging on larger lists (e.g. 56 rows)
+- 1eba3b9 Restyle Neon Stream Player with a black/plum/gold premium palette
+- 9593916 Add favorites, synced to the database per user
+- 3e86997 Make the placeholder nav buttons visibly give feedback on click
+- db88257 Normalize M3U URLs missing their https: scheme before loading
+- b3d0f79 Send a browser-like User-Agent from the M3U proxy, surface real errors
 
 **Project reminders:**
 - Verify the file content before claiming an edit is done
 - Run tests before declaring task complete
 - Re-read CLAUDE.md if you're unsure of project conventions
 
-**Hook generated:** 2026-10-24 21:43:30 UTC
+**Hook generated:** 2026-10-31 22:56:24 UTC
 <!-- post-compact-recovery-end -->
