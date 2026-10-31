@@ -8,28 +8,59 @@
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
-    body { background: #090d16; font-family: 'Plus Jakarta Sans', sans-serif; }
+    :root {
+      --c-black: #080910;
+      --c-navy: #111426;
+      --c-plum: #21152D;
+      --c-gold: #D6AE62;
+      --c-gold-light: #F3D28B;
+      --c-cream: #F5F3EF;
+      --c-muted: #9293A2;
+    }
+    body {
+      background:
+        radial-gradient(1200px 800px at 12% -10%, rgba(33, 21, 45, 0.55), transparent 60%),
+        radial-gradient(1000px 700px at 105% 0%, rgba(17, 20, 38, 0.6), transparent 55%),
+        var(--c-black);
+      color: var(--c-cream);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
     .glass {
-      background: rgba(15, 23, 42, 0.55);
+      background: rgba(17, 20, 38, 0.55);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(214, 174, 98, 0.12);
     }
-    .neon-border { box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.5), 0 0 16px rgba(139, 92, 246, 0.2); }
-    .channel-item:hover { background: rgba(255,255,255,0.06); }
-    .channel-item.active { background: rgba(139, 92, 246, 0.25); }
-    .nav-item.active { box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.5); background: rgba(139, 92, 246, 0.2); }
+    .neon-border { box-shadow: 0 0 0 1px rgba(214, 174, 98, 0.55), 0 0 18px rgba(214, 174, 98, 0.25); }
+    .btn-gold {
+      background: linear-gradient(90deg, var(--c-gold), var(--c-gold-light));
+      color: #15101c;
+      box-shadow: 0 4px 18px rgba(214, 174, 98, 0.22);
+      transition: filter 0.15s ease;
+    }
+    .btn-gold:hover { filter: brightness(1.06); }
+    .channel-item:hover { background: rgba(214, 174, 98, 0.08); }
+    .channel-item.active {
+      background: linear-gradient(90deg, rgba(214, 174, 98, 0.16), rgba(214, 174, 98, 0.04));
+      box-shadow: inset 3px 0 0 0 var(--c-gold);
+    }
+    .nav-item:hover { background: rgba(214, 174, 98, 0.08) !important; }
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(214, 174, 98, 0.18), rgba(214, 174, 98, 0.05));
+      box-shadow: inset 3px 0 0 0 var(--c-gold);
+      color: var(--c-gold) !important;
+    }
     ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb { background: #4a4152; border-radius: 3px; }
   </style>
 </head>
-<body class="text-white h-screen overflow-hidden">
+<body class="h-screen overflow-hidden">
 
 <!-- Connexion -->
 <div id="loginScreen" class="fixed inset-0 flex items-center justify-center z-50 hidden">
   <div class="glass rounded-2xl p-8 w-full max-w-sm mx-4">
     <div class="flex items-center gap-3 mb-6 justify-center">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D6AE62] to-[#8a6a35] flex items-center justify-center text-[#15101c]">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
       </div>
       <div>
@@ -48,8 +79,8 @@
           <input id="loginPassword" type="password" autocomplete="current-password" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none" />
         </div>
         <div id="loginError" class="text-xs text-red-400 hidden"></div>
-        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-sm font-medium transition">Se connecter</button>
-        <button type="button" onclick="switchToSignup()" class="w-full text-xs text-slate-400 hover:text-white transition pt-1">Pas encore de compte ? <span class="text-violet-400">Créer un compte</span></button>
+        <button type="submit" class="w-full py-3 rounded-xl btn-gold text-sm font-semibold transition">Se connecter</button>
+        <button type="button" onclick="switchToSignup()" class="w-full text-xs text-slate-400 hover:text-white transition pt-1">Pas encore de compte ? <span class="text-[#D6AE62]">Créer un compte</span></button>
         <button type="button" onclick="switchToReset()" class="w-full text-xs text-slate-500 hover:text-white transition">Mot de passe oublié ?</button>
         <p class="text-[11px] text-slate-500 text-center">Ton compte fonctionne sur tous tes appareils.</p>
       </form>
@@ -73,15 +104,15 @@
           <input id="resetConfirm" type="password" autocomplete="new-password" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none" />
         </div>
         <div id="resetError" class="text-xs text-red-400 hidden"></div>
-        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-sm font-medium transition">Réinitialiser</button>
+        <button type="submit" class="w-full py-3 rounded-xl btn-gold text-sm font-semibold transition">Réinitialiser</button>
         <button type="button" onclick="switchToLogin()" class="w-full text-xs text-slate-400 hover:text-white transition pt-1">Retour à la connexion</button>
         <p class="text-[11px] text-slate-500 text-center">Le code t'a été montré une seule fois à la création du compte.</p>
       </form>
     </div>
     <div id="recoveryCodeView" class="hidden text-center">
       <p class="text-sm text-slate-300 mb-3">Compte créé ! Note ce code quelque part en sécurité — il te servira si tu oublies ton mot de passe. Il ne sera plus jamais affiché.</p>
-      <div id="recoveryCodeDisplay" class="text-2xl font-mono tracking-widest bg-white/5 border border-white/10 rounded-lg py-4 mb-4 text-violet-300"></div>
-      <button type="button" onclick="confirmRecoveryCodeSaved()" class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-sm font-medium transition">J'ai noté mon code — continuer</button>
+      <div id="recoveryCodeDisplay" class="text-2xl font-mono tracking-widest bg-white/5 border border-white/10 rounded-lg py-4 mb-4 text-[#F3D28B]"></div>
+      <button type="button" onclick="confirmRecoveryCodeSaved()" class="w-full py-3 rounded-xl btn-gold text-sm font-semibold transition">J'ai noté mon code — continuer</button>
     </div>
     <div id="signupView" class="hidden">
       <form id="signupForm" class="space-y-3" onsubmit="handleSignup(event)">
@@ -98,8 +129,8 @@
           <input id="signupConfirm" type="password" autocomplete="new-password" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none" />
         </div>
         <div id="signupError" class="text-xs text-red-400 hidden"></div>
-        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-sm font-medium transition">Créer un compte</button>
-        <button type="button" onclick="switchToLogin()" class="w-full text-xs text-slate-400 hover:text-white transition pt-1">Déjà un compte ? <span class="text-violet-400">Se connecter</span></button>
+        <button type="submit" class="w-full py-3 rounded-xl btn-gold text-sm font-semibold transition">Créer un compte</button>
+        <button type="button" onclick="switchToLogin()" class="w-full text-xs text-slate-400 hover:text-white transition pt-1">Déjà un compte ? <span class="text-[#D6AE62]">Se connecter</span></button>
         <p class="text-[11px] text-slate-500 text-center">Mot de passe chiffré, accessible depuis n'importe quel navigateur.</p>
       </form>
     </div>
@@ -112,7 +143,7 @@
   <!-- Sidebar -->
   <aside class="w-64 glass m-4 rounded-2xl flex flex-col p-5">
     <div class="flex items-center gap-3 mb-8">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D6AE62] to-[#8a6a35] flex items-center justify-center text-[#15101c]">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
       </div>
       <div>
@@ -140,7 +171,7 @@
       <a href="#" onclick="showComingSoon('Guide TV'); return false;" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-white/5 transition">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><rect x="3" y="5" width="18" height="16" rx="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="3" x2="8" y2="7"></line><line x1="16" y1="3" x2="16" y2="7"></line></svg>
         <span class="flex-1">Guide TV</span>
-        <span class="text-[9px] uppercase tracking-wide text-slate-500 bg-white/5 px-1.5 py-0.5 rounded">Bientôt</span>
+        <span class="text-[9px] uppercase tracking-wide text-[#D6AE62]/80 bg-[#D6AE62]/10 px-1.5 py-0.5 rounded">Bientôt</span>
       </a>
       <a href="#" onclick="focusSearch(); return false;" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-white/5 transition">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg> Recherche
@@ -148,11 +179,11 @@
       <a href="#" onclick="showComingSoon('Paramètres'); return false;" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-white/5 transition">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87 1.7 1.7 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1z"></path></svg>
         <span class="flex-1">Paramètres</span>
-        <span class="text-[9px] uppercase tracking-wide text-slate-500 bg-white/5 px-1.5 py-0.5 rounded">Bientôt</span>
+        <span class="text-[9px] uppercase tracking-wide text-[#D6AE62]/80 bg-[#D6AE62]/10 px-1.5 py-0.5 rounded">Bientôt</span>
       </a>
     </nav>
 
-    <button onclick="openImport()" class="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-sm font-medium transition">
+    <button onclick="openImport()" class="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl btn-gold text-sm font-semibold transition">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Ajouter des chaînes
     </button>
   </aside>
@@ -203,7 +234,7 @@
           </div>
           <div id="playerError" class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 hidden">
             <p id="errorText" class="text-sm text-red-300 mb-3 text-center px-6"></p>
-            <button onclick="retryStream()" class="px-4 py-2 bg-violet-600 rounded-lg text-sm">Réessayer</button>
+            <button onclick="retryStream()" class="px-4 py-2 btn-gold rounded-lg text-sm font-medium">Réessayer</button>
           </div>
         </div>
       </div>
@@ -213,7 +244,7 @@
   <!-- Panneau droit -->
   <aside class="w-72 m-4 ml-0 flex flex-col gap-4">
     <div class="glass rounded-2xl p-5 text-center">
-      <div id="profileAvatar" class="w-20 h-20 rounded-full mx-auto mb-3 ring-2 ring-violet-500/50 bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-2xl font-semibold">?</div>
+      <div id="profileAvatar" class="w-20 h-20 rounded-full mx-auto mb-3 ring-2 ring-[#D6AE62]/50 bg-gradient-to-br from-[#D6AE62] to-[#8a6a35] flex items-center justify-center text-2xl font-semibold text-[#15101c]">?</div>
       <div id="profileName" class="font-semibold">—</div>
       <div class="text-xs text-emerald-400 mt-1 flex items-center justify-center gap-1">
         <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span> EN LIGNE
@@ -240,12 +271,12 @@
         <label class="text-xs text-slate-400 block mb-1">URL de la playlist M3U</label>
         <div class="flex gap-2">
           <input id="m3uUrl" type="text" placeholder="https://..." class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none" />
-          <button onclick="loadFromUrl()" class="px-4 py-2 bg-violet-600 rounded-lg text-sm">Charger</button>
+          <button onclick="loadFromUrl()" class="px-4 py-2 btn-gold rounded-lg text-sm font-medium">Charger</button>
         </div>
       </div>
       <div class="text-center text-xs text-slate-500">ou</div>
       <label class="block">
-        <div class="border-2 border-dashed border-white/20 rounded-xl p-6 text-center cursor-pointer hover:border-violet-500/50 transition">
+        <div class="border-2 border-dashed border-white/20 rounded-xl p-6 text-center cursor-pointer hover:border-[#D6AE62]/50 transition">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-7 h-7 mb-2 text-slate-400 mx-auto"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M9.5 14.5 12 12l2.5 2.5"></path><line x1="12" y1="12" x2="12" y2="18"></line></svg>
           <div class="text-sm">Importer un fichier .m3u / .m3u8</div>
           <input id="fileInput" type="file" accept=".m3u,.m3u8,.txt" class="hidden" onchange="loadFromFile(this)" />
@@ -693,7 +724,7 @@ function renderChannels() {
         <div class="text-sm truncate">${escapeHtml(c.name)}</div>
         <div class="text-[10px] text-slate-500">${escapeHtml(c.group)}</div>
       </div>
-      <button onclick="toggleFavorite('${c.id}', event)" class="shrink-0 text-lg leading-none ${favoriteUrls.has(c.url) ? 'text-yellow-400' : 'text-slate-600 hover:text-yellow-300'}" title="Favori">${favoriteUrls.has(c.url) ? '★' : '☆'}</button>
+      <button onclick="toggleFavorite('${c.id}', event)" class="shrink-0 text-lg leading-none ${favoriteUrls.has(c.url) ? 'text-[#D6AE62]' : 'text-[#565660] hover:text-[#D6AE62]'}" title="Favori">${favoriteUrls.has(c.url) ? '★' : '☆'}</button>
     </div>
   `).join('') + (filtered.length === 0 ? `<div class="text-center text-xs text-slate-500 py-6">${favoritesOnly ? 'Aucun favori pour le moment.' : 'Aucune chaîne.'}</div>` : '') + (overflow > 0 ? `<div class="text-center text-xs text-slate-500 py-3">+ ${overflow} autres chaînes — affine ta recherche ou choisis un groupe</div>` : '');
 }
@@ -753,8 +784,8 @@ function focusSearch() {
   const input = document.getElementById('searchInput');
   input.focus();
   input.select();
-  input.classList.add('ring-2', 'ring-violet-500');
-  setTimeout(() => input.classList.remove('ring-2', 'ring-violet-500'), 800);
+  input.classList.add('ring-2', 'ring-[#D6AE62]');
+  setTimeout(() => input.classList.remove('ring-2', 'ring-[#D6AE62]'), 800);
 }
 
 function openImport() { document.getElementById('importModal').classList.remove('hidden'); }
