@@ -1,0 +1,16 @@
+{
+  "name": "Neon Stream Player",
+  "short_name": "Neon",
+  "description": "Lecteur IPTV personnel — playlists M3U, favoris, chaînes en direct.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080910",
+  "theme_color": "#080910",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
