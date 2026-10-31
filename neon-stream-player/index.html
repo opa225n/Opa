@@ -221,16 +221,23 @@ let channels = [];
 let currentChannel = null;
 let hls = null;
 let currentCategory = 'live';
-const STORAGE_KEY = 'neonStreamPlayer.playlist';
 const SESSION_KEY = 'neonStreamPlayer.session';
-const USERS_KEY = 'neonStreamPlayer.users';
 
-function loadUsers() {
-  try { return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; } catch (e) { return {}; }
-}
+const SUPABASE_URL = 'https://zhmdvtmziqdjxxxpilbh.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_39t5LLbPbc6n8686NqBvfw_PFzsDLBM';
 
-function saveUsers(users) {
-  try { localStorage.setItem(USERS_KEY, JSON.stringify(users)); } catch (e) {}
+async function callRpc(fn, body) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const code = data && data.message ? data.message : 'request_failed';
+    throw new Error(code);
+  }
+  return data;
 }
 
 function switchToSignup() {
@@ -249,7 +256,10 @@ function initials(name) {
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() || '').join('') || '?';
 }
 
-function showApp(username) {
+let currentSessionToken = null;
+
+function showApp(username, token) {
+  currentSessionToken = token;
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('profileName').textContent = username;
@@ -266,19 +276,33 @@ function showLogin() {
   switchToLogin();
 }
 
-function checkSession() {
+const LOGIN_ERRORS = {
+  invalid_credentials: 'Identifiants incorrects.',
+  username_taken: "Ce nom d'utilisateur existe déjà.",
+  username_and_password_required: "Nom d'utilisateur et mot de passe requis."
+};
+
+function friendlyAuthError(err) {
+  return LOGIN_ERRORS[err.message] || 'Erreur de connexion au serveur. Réessaie.';
+}
+
+async function checkSession() {
+  let token = null;
+  try { token = localStorage.getItem(SESSION_KEY); } catch (e) {}
+  if (!token) { showLogin(); return; }
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    const session = raw ? JSON.parse(raw) : null;
-    if (session && session.username) {
-      showApp(session.username);
+    const rows = await callRpc('neon_get_session', { p_token: token });
+    if (rows && rows[0] && rows[0].username) {
+      showApp(rows[0].username, token);
+      await loadPlaylistFromServer(token);
       return;
     }
   } catch (e) {}
+  try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
   showLogin();
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
@@ -288,18 +312,24 @@ function handleLogin(event) {
     errorEl.classList.remove('hidden');
     return;
   }
-  const users = loadUsers();
-  if (!users[username] || users[username] !== password) {
-    errorEl.textContent = 'Identifiants incorrects.';
+  const submitBtn = document.querySelector('#loginForm button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    const rows = await callRpc('neon_login', { p_username: username, p_password: password });
+    const token = rows[0].token;
+    try { localStorage.setItem(SESSION_KEY, token); } catch (e) {}
+    errorEl.classList.add('hidden');
+    showApp(username, token);
+    await loadPlaylistFromServer(token);
+  } catch (err) {
+    errorEl.textContent = friendlyAuthError(err);
     errorEl.classList.remove('hidden');
-    return;
+  } finally {
+    submitBtn.disabled = false;
   }
-  errorEl.classList.add('hidden');
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ username })); } catch (e) {}
-  showApp(username);
 }
 
-function handleSignup(event) {
+async function handleSignup(event) {
   event.preventDefault();
   const username = document.getElementById('signupUsername').value.trim();
   const password = document.getElementById('signupPassword').value;
@@ -315,39 +345,50 @@ function handleSignup(event) {
     errorEl.classList.remove('hidden');
     return;
   }
-  const users = loadUsers();
-  if (users[username]) {
-    errorEl.textContent = 'Ce nom d\'utilisateur existe déjà.';
+  const submitBtn = document.querySelector('#signupForm button[type="submit"]');
+  submitBtn.disabled = true;
+  try {
+    const rows = await callRpc('neon_signup', { p_username: username, p_password: password });
+    const token = rows[0].token;
+    try { localStorage.setItem(SESSION_KEY, token); } catch (e) {}
+    errorEl.classList.add('hidden');
+    showApp(username, token);
+  } catch (err) {
+    errorEl.textContent = friendlyAuthError(err);
     errorEl.classList.remove('hidden');
-    return;
+  } finally {
+    submitBtn.disabled = false;
   }
-  errorEl.classList.add('hidden');
-  users[username] = password;
-  saveUsers(users);
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ username })); } catch (e) {}
-  showApp(username);
 }
 
 function logout() {
+  const token = currentSessionToken;
   try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+  if (token) callRpc('neon_logout', { p_token: token }).catch(() => {});
+  currentSessionToken = null;
   if (hls) { hls.destroy(); hls = null; }
   const video = document.getElementById('video');
   video.pause();
   video.removeAttribute('src');
   video.load();
   currentChannel = null;
+  channels = [];
   showLogin();
 }
 
+let savePlaylistTimer = null;
 function savePlaylist() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(channels)); } catch (e) {}
+  if (!currentSessionToken) return;
+  clearTimeout(savePlaylistTimer);
+  const token = currentSessionToken;
+  savePlaylistTimer = setTimeout(() => {
+    callRpc('neon_save_playlist', { p_token: token, p_channels: channels }).catch(() => {});
+  }, 400);
 }
 
-function loadSavedPlaylist() {
+async function loadPlaylistFromServer(token) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const saved = JSON.parse(raw);
+    const saved = await callRpc('neon_load_playlist', { p_token: token });
     if (Array.isArray(saved) && saved.length) {
       channels = saved;
       updateGroups();
@@ -561,7 +602,6 @@ function updateClock() {
 }
 updateClock();
 setInterval(updateClock, 10000);
-loadSavedPlaylist();
 checkSession();
 </script>
 </body>
