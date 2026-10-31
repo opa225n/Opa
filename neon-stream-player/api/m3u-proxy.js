@@ -31,7 +31,14 @@ module.exports = async function handler(req, res) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const upstream = await fetch(target, { redirect: 'follow', signal: controller.signal });
+    const upstream = await fetch(target, {
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'VLC/3.0.20 LibVLC/3.0.20',
+        'Accept': '*/*'
+      }
+    });
     clearTimeout(timeout);
     if (!upstream.ok) {
       res.status(502).json({ error: 'upstream_error', status: upstream.status });
