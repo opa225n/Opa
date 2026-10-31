@@ -520,8 +520,10 @@ function parseM3U(text) {
 }
 
 function loadFromUrl() {
-  const url = document.getElementById('m3uUrl').value.trim();
+  let url = document.getElementById('m3uUrl').value.trim();
   if (!url) return;
+  if (url.startsWith('//')) url = 'https:' + url;
+  else if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
   const statusEl = document.getElementById('importStatus');
   statusEl.className = 'text-xs text-center text-slate-400';
   statusEl.textContent = 'Chargement...';
@@ -549,6 +551,7 @@ function loadFromUrl() {
     })
     .catch(err => {
       const reasons = {
+        invalid_url: "Cette URL n'est pas valide.",
         blocked_host: "Cette adresse n'est pas autorisée.",
         upstream_error: "Le serveur de la playlist a refusé la requête.",
         upstream_too_large: 'Cette playlist est trop volumineuse.',
