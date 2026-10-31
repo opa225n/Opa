@@ -166,7 +166,12 @@
         <input id="searchInput" type="text" placeholder="Rechercher une chaîne..."
           class="w-full glass rounded-full py-3 pl-11 pr-4 text-sm outline-none" oninput="filterChannels()" />
       </div>
-      <div class="glass rounded-full px-4 py-2 text-sm" id="channelCount">0 chaîne</div>
+      <div class="flex items-center gap-2">
+        <button id="favToggle" onclick="toggleFavoritesOnly()" class="glass rounded-full px-4 py-2 text-sm flex items-center gap-1.5 text-slate-300 hover:text-white transition">
+          <span id="favToggleStar">☆</span> Favoris
+        </button>
+        <div class="glass rounded-full px-4 py-2 text-sm" id="channelCount">0 chaîne</div>
+      </div>
     </div>
     <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 glass neon-border rounded-full px-5 py-3 text-sm font-medium hidden"></div>
 
@@ -256,6 +261,8 @@ let channels = [];
 let currentChannel = null;
 let hls = null;
 let currentCategory = 'live';
+let favoriteUrls = new Set();
+let favoritesOnly = false;
 const SESSION_KEY = 'neonStreamPlayer.session';
 
 const SUPABASE_URL = 'https://zhmdvtmziqdjxxxpilbh.supabase.co';
@@ -328,7 +335,8 @@ async function checkSession() {
     const rows = await callRpc('neon_get_session', { p_token: token });
     if (rows && rows[0] && rows[0].username) {
       showApp(rows[0].username, token);
-      await loadPlaylistFromServer(token);
+      await Promise.all([loadPlaylistFromServer(token), loadFavoritesFromServer(token)]);
+      renderChannels();
       return;
     }
   } catch (e) {}
@@ -354,7 +362,8 @@ async function handleLogin(event) {
     try { localStorage.setItem(SESSION_KEY, token); } catch (e) {}
     errorEl.classList.add('hidden');
     showApp(username, token);
-    await loadPlaylistFromServer(token);
+    await Promise.all([loadPlaylistFromServer(token), loadFavoritesFromServer(token)]);
+    renderChannels();
   } catch (err) {
     errorEl.textContent = friendlyAuthError(err);
     errorEl.classList.remove('hidden');
@@ -431,7 +440,8 @@ async function handleResetPassword(event) {
     pendingLogin = { username, token };
     document.getElementById('recoveryCodeDisplay').textContent = recovery_code;
     showAuthView('recoveryCodeView');
-    await loadPlaylistFromServer(token);
+    await Promise.all([loadPlaylistFromServer(token), loadFavoritesFromServer(token)]);
+    renderChannels();
   } catch (err) {
     errorEl.textContent = err.message === 'invalid_recovery_code' ? "Nom d'utilisateur ou code de récupération incorrect." : friendlyAuthError(err);
     errorEl.classList.remove('hidden');
@@ -452,6 +462,8 @@ function logout() {
   video.load();
   currentChannel = null;
   channels = [];
+  favoriteUrls = new Set();
+  favoritesOnly = false;
   showLogin();
 }
 
@@ -471,9 +483,44 @@ async function loadPlaylistFromServer(token) {
     if (Array.isArray(saved) && saved.length) {
       channels = saved;
       updateGroups();
-      renderChannels();
     }
   } catch (e) {}
+}
+
+let saveFavoritesTimer = null;
+function saveFavorites() {
+  if (!currentSessionToken) return;
+  clearTimeout(saveFavoritesTimer);
+  const token = currentSessionToken;
+  saveFavoritesTimer = setTimeout(() => {
+    callRpc('neon_save_favorites', { p_token: token, p_favorites: [...favoriteUrls] }).catch(() => {});
+  }, 400);
+}
+
+async function loadFavoritesFromServer(token) {
+  try {
+    const saved = await callRpc('neon_load_favorites', { p_token: token });
+    favoriteUrls = new Set(Array.isArray(saved) ? saved : []);
+  } catch (e) {}
+}
+
+function toggleFavorite(id, event) {
+  event.stopPropagation();
+  const ch = channels.find(c => c.id === id);
+  if (!ch) return;
+  if (favoriteUrls.has(ch.url)) favoriteUrls.delete(ch.url);
+  else favoriteUrls.add(ch.url);
+  renderChannels();
+  saveFavorites();
+}
+
+function toggleFavoritesOnly() {
+  favoritesOnly = !favoritesOnly;
+  const btn = document.getElementById('favToggle');
+  btn.classList.toggle('neon-border', favoritesOnly);
+  btn.classList.toggle('text-white', favoritesOnly);
+  document.getElementById('favToggleStar').textContent = favoritesOnly ? '★' : '☆';
+  renderChannels();
 }
 
 function escapeHtml(str) {
@@ -634,6 +681,9 @@ function renderChannels() {
   if (currentCategory !== 'all') {
     filtered = filtered.filter(c => c.category === currentCategory);
   }
+  if (favoritesOnly) {
+    filtered = filtered.filter(c => favoriteUrls.has(c.url));
+  }
   document.getElementById('channelCount').textContent = filtered.length + (filtered.length === 1 ? ' chaîne' : ' chaînes');
   const overflow = filtered.length - RENDER_LIMIT;
   document.getElementById('channelList').innerHTML = filtered.slice(0, RENDER_LIMIT).map(c => `
@@ -643,8 +693,9 @@ function renderChannels() {
         <div class="text-sm truncate">${escapeHtml(c.name)}</div>
         <div class="text-[10px] text-slate-500">${escapeHtml(c.group)}</div>
       </div>
+      <button onclick="toggleFavorite('${c.id}', event)" class="shrink-0 text-lg leading-none ${favoriteUrls.has(c.url) ? 'text-yellow-400' : 'text-slate-600 hover:text-yellow-300'}" title="Favori">${favoriteUrls.has(c.url) ? '★' : '☆'}</button>
     </div>
-  `).join('') + (overflow > 0 ? `<div class="text-center text-xs text-slate-500 py-3">+ ${overflow} autres chaînes — affine ta recherche ou choisis un groupe</div>` : '');
+  `).join('') + (filtered.length === 0 ? `<div class="text-center text-xs text-slate-500 py-6">${favoritesOnly ? 'Aucun favori pour le moment.' : 'Aucune chaîne.'}</div>` : '') + (overflow > 0 ? `<div class="text-center text-xs text-slate-500 py-3">+ ${overflow} autres chaînes — affine ta recherche ou choisis un groupe</div>` : '');
 }
 
 let filterDebounceTimer = null;
