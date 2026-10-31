@@ -203,6 +203,10 @@
         <button onclick="openImport(); closeMenu();" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl btn-gold text-sm font-semibold transition mb-2">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg> Ajouter des chaînes
         </button>
+        <button id="savePlaylistBtn" onclick="savePlaylistNow()" class="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs text-slate-300 transition mb-2">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+          Enregistrer la playlist
+        </button>
         <button onclick="logout()" class="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs text-slate-300 transition">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
           Déconnexion
@@ -538,6 +542,22 @@ function savePlaylist() {
   }, 400);
 }
 
+async function savePlaylistNow() {
+  if (!currentSessionToken) return;
+  clearTimeout(savePlaylistTimer);
+  const btn = document.getElementById('savePlaylistBtn');
+  if (btn) btn.disabled = true;
+  try {
+    await callRpc('neon_save_playlist', { p_token: currentSessionToken, p_channels: channels });
+    showToast('Playlist enregistrée ✓');
+  } catch (e) {
+    showToast('Échec de la sauvegarde — réessaie');
+  } finally {
+    if (btn) btn.disabled = false;
+    closeMenu();
+  }
+}
+
 async function loadPlaylistFromServer(token) {
   try {
     const saved = await callRpc('neon_load_playlist', { p_token: token });
@@ -803,12 +823,16 @@ function showError(msg) {
 function retryStream() { if (currentChannel) playChannel(currentChannel.id); }
 
 let toastTimer = null;
-function showComingSoon(feature) {
+function showToast(msg, duration = 2500) {
   const toast = document.getElementById('toast');
-  toast.textContent = `${feature} — bientôt disponible`;
+  toast.textContent = msg;
   toast.classList.remove('hidden');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.add('hidden'), 3000);
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), duration);
+}
+
+function showComingSoon(feature) {
+  showToast(`${feature} — bientôt disponible`, 3000);
   closeMenu();
 }
 
